@@ -114,8 +114,7 @@ struct Vec4f {
 
 }
 
-import std.stdio;   // printf
-import core.stdc.stdlib;  // malloc, free
+import std.stdio : printf, fopen, puts, sprintf, fwrite, fclose;
 import std.math : PI, sqrt, pow, fabs, tan;
 
 enum WIDTH = 1024;
@@ -217,23 +216,23 @@ Vec3f refraction_vector(Vec3f light_vector, Vec3f normal, float refractive_index
 }
 
 static bool
-scene_intersect(ref const Ray ray, const Sphere[] spheres, Vec3f* hit_point, Vec3f* surface_normal, Material* material) {
+scene_intersect(ref const Ray ray, const Sphere[] spheres, ref Vec3f hit_point, ref Vec3f surface_normal, ref Material material) {
     float spheres_distance = float.max;
 
-    for (size_t i = 0; i < spheres.length; i++) {
+    foreach (ref current_sphere; spheres) {
         float distance_of_i;
-        bool current_sphere_intersects = ray_intersects_sphere(ray, spheres[i], distance_of_i);
+        bool current_sphere_intersects = ray_intersects_sphere(ray, current_sphere, distance_of_i);
 
         // Finds the closest sphere.
         if (current_sphere_intersects && (distance_of_i < spheres_distance)) {
             spheres_distance = distance_of_i;
 
-            *hit_point = Vec3f.add(ray.origin, Vec3f.multiply(ray.direction, distance_of_i));
+            hit_point = Vec3f.add(ray.origin, Vec3f.multiply(ray.direction, distance_of_i));
 
-            *surface_normal = Vec3f.sub(*hit_point, spheres[i].center);
+            surface_normal = Vec3f.sub(hit_point, current_sphere.center);
             surface_normal.normalize();
 
-            *material = spheres[i].material;
+            material = current_sphere.material;
         }
     }
 
@@ -249,8 +248,8 @@ scene_intersect(ref const Ray ray, const Sphere[] spheres, Vec3f* hit_point, Vec
 
         if (board_distance>0 && fabs(board_hit_point.x)<10 && board_hit_point.z<-10 && board_hit_point.z>-30 && board_distance<spheres_distance) {
             checkerboard_distance = board_distance;
-            *hit_point = board_hit_point;
-            *surface_normal = Vec3f(0, 1, 0);
+            hit_point = board_hit_point;
+            surface_normal = Vec3f(0, 1, 0);
 
             int white_or_orange = (cast(int)(.5*hit_point.x+1000) + cast(int)(.5*hit_point.z));
 
@@ -267,7 +266,7 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
     Vec3f point, surface_normal;
     Material material;
 
-    if (depth > 5 || !scene_intersect(ray, spheres, &point, &surface_normal, &material)) {
+    if (depth > 5 || !scene_intersect(ray, spheres, point, surface_normal, material)) {
         return Vec3f(0.2, 0.7, 0.8); // Background color
     }
 
@@ -306,43 +305,43 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
     }
 
     float diffuse_light_intensity = 0, specular_light_intensity = 0;
-    for (size_t i = 0; i < lights.length; i++) {
-            Vec3f light_direction = Vec3f.sub(lights[i].position, point);
-            light_direction.normalize();
+    foreach (ref current_light; lights) {
+        Vec3f light_direction = Vec3f.sub(current_light.position, point);
+        light_direction.normalize();
 
-            bool in_shadow = false;
-            {
-                // Can this point see the current light?
-                Vec3f light_to_point_vec = Vec3f.sub(lights[i].position, point);
-                float light_distance = light_to_point_vec.norm();
+        bool in_shadow = false;
+        {
+            // Can this point see the current light?
+            Vec3f light_to_point_vec = Vec3f.sub(current_light.position, point);
+            float light_distance = light_to_point_vec.norm();
 
-                Vec3f shadow_origin;
-                if (Vec3f.multiply(light_direction, surface_normal) < 0) {
-                    shadow_origin = Vec3f.sub(point, Vec3f.multiply(surface_normal, 1e-3));
-                } else {
-                    shadow_origin = Vec3f.add(point, Vec3f.multiply(surface_normal, 1e-3));
-                }
-
-                Vec3f shadow_point, shadow_normal; Material temp_material;
-
-                Ray temp_ray = {shadow_origin, light_direction};
-                bool light_intersected = scene_intersect(temp_ray, spheres, &shadow_point, &shadow_normal, &temp_material);
-                Vec3f pt_to_origin = Vec3f.sub(shadow_point, shadow_origin);
-                bool obstruction_closer_than_light = pt_to_origin.norm() < light_distance;
-                in_shadow = light_intersected && obstruction_closer_than_light;
+            Vec3f shadow_origin;
+            if (Vec3f.multiply(light_direction, surface_normal) < 0) {
+                shadow_origin = Vec3f.sub(point, Vec3f.multiply(surface_normal, 1e-3));
+            } else {
+                shadow_origin = Vec3f.add(point, Vec3f.multiply(surface_normal, 1e-3));
             }
-            if (in_shadow) continue;
 
-            // Diffuse Lighting:
-            float surface_illumination_intensity = Vec3f.multiply(light_direction, surface_normal);
-            if (surface_illumination_intensity < 0) surface_illumination_intensity = 0;
-            diffuse_light_intensity  += lights[i].intensity * surface_illumination_intensity;
+            Vec3f shadow_point, shadow_normal; Material temp_material;
 
-            // Specular Lighting:
-            float specular_illumination_intensity = Vec3f.multiply(reflection_vector(light_direction, surface_normal), ray.direction);
-            if (specular_illumination_intensity < 0) specular_illumination_intensity = 0;
-            specular_illumination_intensity = pow(specular_illumination_intensity, material.specular_exponent);
-            specular_light_intensity += lights[i].intensity * specular_illumination_intensity;
+            Ray temp_ray = {shadow_origin, light_direction};
+            bool light_intersected = scene_intersect(temp_ray, spheres, shadow_point, shadow_normal, temp_material);
+            Vec3f pt_to_origin = Vec3f.sub(shadow_point, shadow_origin);
+            bool obstruction_closer_than_light = pt_to_origin.norm() < light_distance;
+            in_shadow = light_intersected && obstruction_closer_than_light;
+        }
+        if (in_shadow) continue;
+
+        // Diffuse Lighting:
+        float surface_illumination_intensity = Vec3f.multiply(light_direction, surface_normal);
+        if (surface_illumination_intensity < 0) surface_illumination_intensity = 0;
+        diffuse_light_intensity += current_light.intensity * surface_illumination_intensity;
+
+        // Specular Lighting:
+        float specular_illumination_intensity = Vec3f.multiply(reflection_vector(light_direction, surface_normal), ray.direction);
+        if (specular_illumination_intensity < 0) specular_illumination_intensity = 0;
+        specular_illumination_intensity = pow(specular_illumination_intensity, material.specular_exponent);
+        specular_light_intensity += current_light.intensity * specular_illumination_intensity;
     }
 
     Vec3f lighting = Vec3f.add(
@@ -355,15 +354,12 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
         Vec3f.multiply(refract_color, material.albedo.w)
     );
 
-    return Vec3f.add(
-        lighting,
-        reflect_refract
-    );
+    return Vec3f.add(lighting, reflect_refract);
 }
 
 // NOTE: Move this to a utils.h (?) when working on Raycasting or Software Rendering.
 void
-dump_ppm_image(Vec3f* buffer, int width, int height) {
+dump_ppm_image(Vec3f[] buffer, int width, int height) {
     // Size of buffer parametre must be width * height!
     // Dump the image to a PPM file.
 
@@ -377,23 +373,22 @@ dump_ppm_image(Vec3f* buffer, int width, int height) {
     size_t count = sprintf(cast(char*)header, "P6\n%d %d\n255\n", width, height);
     fwrite(cast(void*)header, ubyte.sizeof, count, fp); // Write the PPM header.
 
-    for (int pixel = 0; pixel < width * height; pixel++) {
+    foreach (ref pixel; buffer) {
         {
             // Check if any of the vec elements is greater than one.
-            Vec3f* vec = &buffer[pixel];
-            float max = vec.x > vec.y ? vec.x : vec.y;
-            max = max > vec.z ? max : vec.z;
+            float max = pixel.x > pixel.y ? pixel.x : pixel.y;
+            max = max > pixel.z ? max : pixel.z;
 
             if (max > 1) {
-                vec.x /= max;
-                vec.y /= max;
-                vec.z /= max;
+                pixel.x /= max;
+                pixel.y /= max;
+                pixel.z /= max;
             }
         }
 
-        ubyte x = cast(ubyte)(buffer[pixel].x * 255);
-        ubyte y = cast(ubyte)(buffer[pixel].y * 255);
-        ubyte z = cast(ubyte)(buffer[pixel].z * 255);
+        ubyte x = cast(ubyte)(pixel.x * 255);
+        ubyte y = cast(ubyte)(pixel.y * 255);
+        ubyte z = cast(ubyte)(pixel.z * 255);
 
         ubyte[3] rgb = [x, y, z];
 
@@ -407,7 +402,7 @@ dump_ppm_image(Vec3f* buffer, int width, int height) {
 
 static void
 render(const Sphere[] spheres, const Light[] lights) {
-    Vec3f *framebuffer = cast(Vec3f*)malloc(WIDTH*HEIGHT*Vec3f.sizeof);
+    Vec3f[] framebuffer = new Vec3f[WIDTH * HEIGHT];
 
     // Each pixel in the resulting image will have an RGB value, represented by the Vec3f type.
     for (size_t row = 0; row < HEIGHT; row++) {
@@ -429,8 +424,8 @@ render(const Sphere[] spheres, const Light[] lights) {
             framebuffer[col + row * WIDTH] = cast_ray(ray, spheres, lights, 0);
         }
     }
+
     dump_ppm_image(framebuffer, WIDTH, HEIGHT);
-    free(framebuffer);
 }
 
 void main() {
