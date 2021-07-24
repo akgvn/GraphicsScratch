@@ -15,144 +15,133 @@
 //
 
 
-struct Vec2f { float x, y; }
-struct Vec3f { float x, y, z; }
-struct Vec4f { float x, y, z, w; }
-
-// Notes:
-// Vec3i and its functions are not implemented.
-// Code is ported to C from C++ templates at https://github.com/ssloy/tinyraytracer/blob/master/geometry.h
-
-// The lines of code could have been fewer if I used macros but I'm avoiding macros for now, I'd rather not deal with them for the time being.
-
-
-float vec3f_norm(Vec3f vec) { return sqrt(vec.x*vec.x + vec.y*vec.y + vec.z*vec.z); }
-
-void vec3f_normalize(Vec3f* vec) {
-    float norm = vec3f_norm(*vec);
-    vec.x /= norm; vec.y /= norm; vec.z /= norm;
+struct Vec2f {
+    float x, y;
+    void print() { printf("Vec2f { %f, %f }\n", this.x, this.y); }
 }
 
-Vec3f cross(Vec3f v1, Vec3f v2) {
-    Vec3f ret = {
-        x : v1.y*v2.z - v1.z*v2.y,
-        y : v1.z*v2.x - v1.x*v2.z,
-        z : v1.x*v2.y - v1.y*v2.x,
-    };
-    return ret;
+struct Vec3f {
+    float x, y, z;
+
+    float norm() { return sqrt(this.x * this.x + this.y * this.y + this.z * this.z); }
+
+    void normalize() {
+        float norm = norm();
+        x /= norm;
+        y /= norm;
+        z /= norm;
+    }
+
+    static float multiply(Vec3f lhs, Vec3f rhs) { return (lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z); }
+
+    static Vec3f multiply(Vec3f lhs, float rhs) {
+        Vec3f ret = {
+            x : lhs.x * rhs,
+            y : lhs.y * rhs,
+            z : lhs.z * rhs,
+        };
+        return ret;
+    }
+
+    static Vec3f cross(Vec3f v1, Vec3f v2) {
+        Vec3f ret = {
+            x : v1.y*v2.z - v1.z*v2.y,
+            y : v1.z*v2.x - v1.x*v2.z,
+            z : v1.x*v2.y - v1.y*v2.x,
+        };
+        return ret;
+    }
+
+    static Vec3f add(Vec3f lhs, Vec3f rhs) {
+        Vec3f ret = {
+            x : lhs.x + rhs.x,
+            y : lhs.y + rhs.y,
+            z : lhs.z + rhs.z,
+        };
+        return ret;
+    }
+
+    static Vec3f sub(Vec3f lhs, Vec3f rhs) {
+        Vec3f ret = {
+            x : lhs.x - rhs.x,
+            y : lhs.y - rhs.y,
+            z : lhs.z - rhs.z,
+        };
+        return ret;
+    }
+
+    void print() { printf("Vec3f { %f, %f, %f }\n", this.x, this.y, this.z); }
 }
 
-float multiply_vec3f(Vec3f lhs, Vec3f rhs) { return (lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z); }
+struct Vec4f {
+    float x, y, z, w;
 
-Vec3f multiply_vec3f_with_scalar(Vec3f lhs, float rhs) {
-    Vec3f ret = {
-        x : lhs.x * rhs,
-        y : lhs.y * rhs,
-        z : lhs.z * rhs,
-    };
-    return ret;
+    void print() { printf("Vec4f { %f, %f, %f, %f }\n", this.x, this.y, this.z, this.w); }
+
+    static float multiply(Vec4f lhs, Vec4f rhs) {
+        return (lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z + lhs.w * rhs.w);
+    }
+
+    static Vec4f multiply(Vec4f lhs, float rhs) {
+        Vec4f ret = {
+            x : lhs.x * rhs,
+            y : lhs.y * rhs,
+            z : lhs.z * rhs,
+            w : lhs.w * rhs,
+        };
+        return ret;
+    }
+
+    static Vec4f add(Vec4f lhs, Vec4f rhs) {
+        Vec4f ret = {
+            x : lhs.x + rhs.x,
+            y : lhs.y + rhs.y,
+            z : lhs.z + rhs.z,
+            w : lhs.w + rhs.w,
+        };
+        return ret;
+    }
+
+    static Vec4f sub(Vec4f lhs, Vec4f rhs) {
+        Vec4f ret = {
+            x : lhs.x - rhs.x,
+            y : lhs.y - rhs.y,
+            z : lhs.z - rhs.z,
+            w : lhs.w - rhs.w,
+        };
+        return ret;
+    }
+
 }
-
-Vec3f add_vec3f(Vec3f lhs, Vec3f rhs) {
-    Vec3f ret = {
-        x : lhs.x + rhs.x,
-        y : lhs.y + rhs.y,
-        z : lhs.z + rhs.z,
-    };
-    return ret;
-}
-
-Vec3f sub_vec3f(Vec3f lhs, Vec3f rhs) {
-    Vec3f ret = {
-        x : lhs.x - rhs.x,
-        y : lhs.y - rhs.y,
-        z : lhs.z - rhs.z,
-    };
-    return ret;
-}
-
-// Vec4f -------------------------------------
-
-float multiply_vec4f(Vec4f lhs, Vec4f rhs) {
-    return (lhs.x * rhs.x + 
-            lhs.y * rhs.y + 
-            lhs.z * rhs.z +
-            lhs.w * rhs.w);
-}
-
-Vec4f multiply_vec4f_with_scalar(Vec4f lhs, float rhs) {
-    Vec4f ret = {
-        x : lhs.x * rhs,
-        y : lhs.y * rhs,
-        z : lhs.z * rhs,
-        w : lhs.w * rhs,
-    };
-    return ret;
-}
-
-Vec4f add_vec4f(Vec4f lhs, Vec4f rhs) {
-    Vec4f ret = {
-        x : lhs.x + rhs.x,
-        y : lhs.y + rhs.y,
-        z : lhs.z + rhs.z,
-        w : lhs.w + rhs.w,
-    };
-    return ret;
-}
-
-Vec4f sub_vec4f(Vec4f lhs, Vec4f rhs) {
-    Vec4f ret = {
-        x : lhs.x - rhs.x,
-        y : lhs.y - rhs.y,
-        z : lhs.z - rhs.z,
-        w : lhs.w - rhs.w,
-    };
-    return ret;
-}
-
-// Print ----------------------------------
-
-void print_vec4f(Vec4f vec) { printf("Vec4f { %f, %f, %f, %f }\n", vec.x, vec.y, vec.z, vec.w); }
-
-void print_vec3f(Vec3f vec) { printf("Vec3f { %f, %f, %f }\n", vec.x, vec.y, vec.z); }
-
-void print_vec2f(Vec2f vec) { printf("Vec2f { %f, %f }\n", vec.x, vec.y); }
-
-// -------------------------------------------------------------
 
 import std.stdio;   // printf
 import core.stdc.stdlib;  // malloc, free
 import std.math : PI, sqrt, pow, fabs, tan;
-// import std.c.float;   // maximum float value (float.max)
 
 enum WIDTH = 1024;
 enum HEIGHT = 768;
 enum FOV = (PI/2.0);
 
 // NOTE: Maybe move these structs to a Raytracing.h?
-struct Material
-{
+struct Material {
     float refractive_index = 1.0;
-    Vec4f albedo = {1.0,  0.0, 0.0, 0.0};
+    Vec4f albedo = {1.0, 0.0, 0.0, 0.0};
     Vec3f diffuse_color = {0.0, 0.0, 0.0};
     float specular_exponent = 0.0; // "shininess"?
 };
 
-struct Sphere
-{
+struct Sphere {
     Vec3f center;
     float radius;
     Material material;
 };
 
-struct Ray
-{
+struct Ray {
     Vec3f origin;
     Vec3f direction;
 };
 
-struct Light
-{
+struct Light {
     Vec3f position;
     float intensity;
 };
@@ -166,11 +155,11 @@ ray_intersects_sphere(const ref Ray ray, const ref Sphere sphere, ref float firs
     // trying to name things in an explanatory way. I'll put a list of resources to
     // understand what is going on here to the readme.
 
-    Vec3f L = sub_vec3f(sphere.center, ray.origin); // sphere_center_to_ray_origin_distance
+    Vec3f L = Vec3f.sub(sphere.center, ray.origin); // sphere_center_to_ray_origin_distance
 
-    float tc = multiply_vec3f(L, ray.direction); // tc is the distance of sphere center to ray origin along the ray direction vector.
+    float tc = Vec3f.multiply(L, ray.direction); // tc is the distance of sphere center to ray origin along the ray direction vector.
 
-    float center_to_ray_straight_distance = multiply_vec3f(L, L) - tc*tc;
+    float center_to_ray_straight_distance = Vec3f.multiply(L, L) - tc*tc;
     float radius_squared = sphere.radius * sphere.radius;
 
     // Check if the ray is not inside the sphere
@@ -192,14 +181,14 @@ ray_intersects_sphere(const ref Ray ray, const ref Sphere sphere, ref float firs
 
 Vec3f
 reflection_vector(Vec3f light_direction, Vec3f surface_normal) {
-    return sub_vec3f(
+    return Vec3f.sub(
         light_direction,
-        multiply_vec3f_with_scalar(surface_normal, 2.0 * multiply_vec3f(light_direction, surface_normal))
+        Vec3f.multiply(surface_normal, 2.0 * Vec3f.multiply(light_direction, surface_normal))
     );
 }
 
 Vec3f refraction_vector(Vec3f light_vector, Vec3f normal, float refractive_index) { // Snell's law
-    float cos_incidence = -1 * multiply_vec3f(light_vector, normal); // Cosine of the angle of the incidence
+    float cos_incidence = -1 * Vec3f.multiply(light_vector, normal); // Cosine of the angle of the incidence
 
     if      (cos_incidence >  1) { cos_incidence =  1; }
     else if (cos_incidence < -1) { cos_incidence = -1; }
@@ -210,7 +199,7 @@ Vec3f refraction_vector(Vec3f light_vector, Vec3f normal, float refractive_index
     if (cos_incidence < 0) { // Is the ray inside the object?
         cos_incidence = -cos_incidence;
         refractive_indices_ratio = refractive_index; // swap the indices
-        refraction_normal = multiply_vec3f_with_scalar(normal, -1); // invert the normal
+        refraction_normal = Vec3f.multiply(normal, -1); // invert the normal
     } else { // not inside the object, go on
         refractive_indices_ratio = 1.0 / refractive_index;
         refraction_normal = normal;
@@ -220,9 +209,9 @@ Vec3f refraction_vector(Vec3f light_vector, Vec3f normal, float refractive_index
     if (cos_refraction_squared < 0) {
         return Vec3f(0, 0, 0);
     } else {
-        return add_vec3f(
-            multiply_vec3f_with_scalar(light_vector, refractive_indices_ratio),
-            multiply_vec3f_with_scalar(refraction_normal, (refractive_indices_ratio * cos_incidence) - sqrt(cos_refraction_squared))
+        return Vec3f.add(
+            Vec3f.multiply(light_vector, refractive_indices_ratio),
+            Vec3f.multiply(refraction_normal, (refractive_indices_ratio * cos_incidence) - sqrt(cos_refraction_squared))
         );
     }
 }
@@ -239,10 +228,10 @@ scene_intersect(ref const Ray ray, const Sphere[] spheres, Vec3f* hit_point, Vec
         if (current_sphere_intersects && (distance_of_i < spheres_distance)) {
             spheres_distance = distance_of_i;
 
-            *hit_point = add_vec3f(ray.origin, multiply_vec3f_with_scalar(ray.direction, distance_of_i));
+            *hit_point = Vec3f.add(ray.origin, Vec3f.multiply(ray.direction, distance_of_i));
 
-            *surface_normal = sub_vec3f(*hit_point, spheres[i].center);
-            vec3f_normalize(surface_normal);
+            *surface_normal = Vec3f.sub(*hit_point, spheres[i].center);
+            surface_normal.normalize();
 
             *material = spheres[i].material;
         }
@@ -253,9 +242,9 @@ scene_intersect(ref const Ray ray, const Sphere[] spheres, Vec3f* hit_point, Vec
     if (fabs(ray.direction.y) > 1e-3)  {
 
         float board_distance = -(ray.origin.y+4) / ray.direction.y; // the checkerboard plane has equation y = -4
-        Vec3f board_hit_point = add_vec3f(
+        Vec3f board_hit_point = Vec3f.add(
             ray.origin,
-            multiply_vec3f_with_scalar(ray.direction, board_distance)
+            Vec3f.multiply(ray.direction, board_distance)
         );
 
         if (board_distance>0 && fabs(board_hit_point.x)<10 && board_hit_point.z<-10 && board_hit_point.z>-30 && board_distance<spheres_distance) {
@@ -266,7 +255,7 @@ scene_intersect(ref const Ray ray, const Sphere[] spheres, Vec3f* hit_point, Vec
             int white_or_orange = (cast(int)(.5*hit_point.x+1000) + cast(int)(.5*hit_point.z));
 
             material.diffuse_color = white_or_orange & 1 ? Vec3f(1, 1, 1) : Vec3f(1, 0.7, 0.3);
-            material.diffuse_color = multiply_vec3f_with_scalar(material.diffuse_color, 0.3);
+            material.diffuse_color = Vec3f.multiply(material.diffuse_color, 0.3);
         }
     }
     return (spheres_distance<1000) || (checkerboard_distance<1000);
@@ -284,14 +273,14 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
 
     Vec3f reflect_color;
     {   // Reflection stuff happens in this scope.
-        Vec3f reflect_direction = reflection_vector(ray.direction, surface_normal); vec3f_normalize(&reflect_direction);
+        Vec3f reflect_direction = reflection_vector(ray.direction, surface_normal); reflect_direction.normalize();
 
         Vec3f reflect_origin; // offset the original point to avoid occlusion by the object itself
         {
-            if (multiply_vec3f(reflect_direction, surface_normal) < 0) {
-                reflect_origin = sub_vec3f(point, multiply_vec3f_with_scalar(surface_normal, 1e-3));
+            if (Vec3f.multiply(reflect_direction, surface_normal) < 0) {
+                reflect_origin = Vec3f.sub(point, Vec3f.multiply(surface_normal, 1e-3));
             } else {
-                reflect_origin = add_vec3f(point, multiply_vec3f_with_scalar(surface_normal, 1e-3));
+                reflect_origin = Vec3f.add(point, Vec3f.multiply(surface_normal, 1e-3));
             }
         }
 
@@ -301,14 +290,14 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
 
     Vec3f refract_color;
     {   // refraction stuff happens in this scope.
-        Vec3f refract_direction = refraction_vector(ray.direction, surface_normal, material.refractive_index); vec3f_normalize(&refract_direction);
+        Vec3f refract_direction = refraction_vector(ray.direction, surface_normal, material.refractive_index); refract_direction.normalize();
 
         Vec3f refract_origin;
         {
-            if (multiply_vec3f(refract_direction, surface_normal) < 0) {
-                refract_origin = sub_vec3f(point, multiply_vec3f_with_scalar(surface_normal, 1e-3));
+            if (Vec3f.multiply(refract_direction, surface_normal) < 0) {
+                refract_origin = Vec3f.sub(point, Vec3f.multiply(surface_normal, 1e-3));
             } else {
-                refract_origin = add_vec3f(point, multiply_vec3f_with_scalar(surface_normal, 1e-3));
+                refract_origin = Vec3f.add(point, Vec3f.multiply(surface_normal, 1e-3));
             }
         }
 
@@ -318,55 +307,55 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
 
     float diffuse_light_intensity = 0, specular_light_intensity = 0;
     for (size_t i = 0; i < lights.length; i++) {
-            Vec3f light_direction = sub_vec3f(lights[i].position, point);
-            vec3f_normalize(&light_direction);
+            Vec3f light_direction = Vec3f.sub(lights[i].position, point);
+            light_direction.normalize();
 
             bool in_shadow = false;
             {
                 // Can this point see the current light?
-                Vec3f light_to_point_vec = sub_vec3f(lights[i].position, point);
-                float light_distance = vec3f_norm(light_to_point_vec);
+                Vec3f light_to_point_vec = Vec3f.sub(lights[i].position, point);
+                float light_distance = light_to_point_vec.norm();
 
                 Vec3f shadow_origin;
-                if (multiply_vec3f(light_direction, surface_normal) < 0) {
-                    shadow_origin = sub_vec3f(point, multiply_vec3f_with_scalar(surface_normal, 1e-3));
+                if (Vec3f.multiply(light_direction, surface_normal) < 0) {
+                    shadow_origin = Vec3f.sub(point, Vec3f.multiply(surface_normal, 1e-3));
                 } else {
-                    shadow_origin = add_vec3f(point, multiply_vec3f_with_scalar(surface_normal, 1e-3));
+                    shadow_origin = Vec3f.add(point, Vec3f.multiply(surface_normal, 1e-3));
                 }
 
                 Vec3f shadow_point, shadow_normal; Material temp_material;
 
                 Ray temp_ray = {shadow_origin, light_direction};
                 bool light_intersected = scene_intersect(temp_ray, spheres, &shadow_point, &shadow_normal, &temp_material);
-                Vec3f pt_to_origin = sub_vec3f(shadow_point, shadow_origin);
-                bool obstruction_closer_than_light = vec3f_norm(pt_to_origin) < light_distance;
+                Vec3f pt_to_origin = Vec3f.sub(shadow_point, shadow_origin);
+                bool obstruction_closer_than_light = pt_to_origin.norm() < light_distance;
                 in_shadow = light_intersected && obstruction_closer_than_light;
             }
             if (in_shadow) continue;
 
             // Diffuse Lighting:
-            float surface_illumination_intensity = multiply_vec3f(light_direction, surface_normal);
+            float surface_illumination_intensity = Vec3f.multiply(light_direction, surface_normal);
             if (surface_illumination_intensity < 0) surface_illumination_intensity = 0;
             diffuse_light_intensity  += lights[i].intensity * surface_illumination_intensity;
 
             // Specular Lighting:
-            float specular_illumination_intensity = multiply_vec3f(reflection_vector(light_direction, surface_normal), ray.direction);
+            float specular_illumination_intensity = Vec3f.multiply(reflection_vector(light_direction, surface_normal), ray.direction);
             if (specular_illumination_intensity < 0) specular_illumination_intensity = 0;
             specular_illumination_intensity = pow(specular_illumination_intensity, material.specular_exponent);
             specular_light_intensity += lights[i].intensity * specular_illumination_intensity;
     }
 
-    Vec3f lighting = add_vec3f(
-        multiply_vec3f_with_scalar(material.diffuse_color, diffuse_light_intensity * material.albedo.x),
-        multiply_vec3f_with_scalar(Vec3f(1.0, 1.0, 1.0), specular_light_intensity * material.albedo.y)
+    Vec3f lighting = Vec3f.add(
+        Vec3f.multiply(material.diffuse_color, diffuse_light_intensity * material.albedo.x),
+        Vec3f.multiply(Vec3f(1.0, 1.0, 1.0), specular_light_intensity * material.albedo.y)
     );
 
-    Vec3f reflect_refract = add_vec3f(
-        multiply_vec3f_with_scalar(reflect_color, material.albedo.z),
-        multiply_vec3f_with_scalar(refract_color, material.albedo.w)
+    Vec3f reflect_refract = Vec3f.add(
+        Vec3f.multiply(reflect_color, material.albedo.z),
+        Vec3f.multiply(refract_color, material.albedo.w)
     );
 
-    return add_vec3f(
+    return Vec3f.add(
         lighting,
         reflect_refract
     );
@@ -432,7 +421,7 @@ render(const Sphere[] spheres, const Light[] lights) {
 
             Vec3f dir = {x, y, -1};
 
-            vec3f_normalize(&dir);
+            dir.normalize();
             Ray ray = {origin: Vec3f(0, 0, 0), direction: dir};
 
             // Writing [col * row + WIDTH] instead of the current expression just cost
