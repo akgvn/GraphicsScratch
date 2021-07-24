@@ -14,12 +14,6 @@
 // - akgvn, 2021/07/24
 //
 
-
-struct Vec2f {
-    float x, y;
-    void print() { printf("Vec2f { %f, %f }\n", this.x, this.y); }
-}
-
 struct Vec3f {
     float x, y, z;
 
@@ -36,73 +30,26 @@ struct Vec3f {
     auto opBinary(string op, T)(T rhs) const pure nothrow if ((op == "*" || op == "+" || op == "-")) {
         static if (is(T == Vec3f) || is(T == const(Vec3f))) {
             static if (op == "+") {
-                return Vec3f(
-                    x + rhs.x,
-                    y + rhs.y,
-                    z + rhs.z,
-                );
+                return Vec3f(x + rhs.x, y + rhs.y, z + rhs.z);
             }
             else static if (op == "-") {
-                return Vec3f(
-                    x - rhs.x,
-                    y - rhs.y,
-                    z - rhs.z,
-                );
+                return Vec3f(x - rhs.x, y - rhs.y, z - rhs.z);
             }
             else static if (op == "*") {
                 return (x * rhs.x + y * rhs.y + z * rhs.z);
             }
-            else static assert(0, "Operator " ~ op ~ " not implemented");
+            else static assert(0, "Operator " ~ op ~ " not implemented.");
         }
         else static if (isNumeric!T && op == "*") {
             return Vec3f(x * rhs, y * rhs, z * rhs);
         }
-        else static assert(0, "Operator " ~ op ~ " not implemented");
+        else static assert(0, "Operator " ~ op ~ " not implemented for " ~ T.stringof ~ ".");
     }
 
     void print() { printf("Vec3f { %f, %f, %f }\n", this.x, this.y, this.z); }
 }
 
-struct Vec4f {
-    float x, y, z, w;
-
-    void print() { printf("Vec4f { %f, %f, %f, %f }\n", this.x, this.y, this.z, this.w); }
-
-    static float multiply(Vec4f lhs, Vec4f rhs) {
-        return (lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z + lhs.w * rhs.w);
-    }
-
-    static Vec4f multiply(Vec4f lhs, float rhs) {
-        Vec4f ret = {
-            x : lhs.x * rhs,
-            y : lhs.y * rhs,
-            z : lhs.z * rhs,
-            w : lhs.w * rhs,
-        };
-        return ret;
-    }
-
-    static Vec4f add(Vec4f lhs, Vec4f rhs) {
-        Vec4f ret = {
-            x : lhs.x + rhs.x,
-            y : lhs.y + rhs.y,
-            z : lhs.z + rhs.z,
-            w : lhs.w + rhs.w,
-        };
-        return ret;
-    }
-
-    static Vec4f sub(Vec4f lhs, Vec4f rhs) {
-        Vec4f ret = {
-            x : lhs.x - rhs.x,
-            y : lhs.y - rhs.y,
-            z : lhs.z - rhs.z,
-            w : lhs.w - rhs.w,
-        };
-        return ret;
-    }
-
-}
+struct Vec4f { float x, y, z, w; }
 
 import std.stdio : printf, fopen, puts, sprintf, fwrite, fclose;
 import std.math : PI, sqrt, pow, fabs, tan;
@@ -111,7 +58,6 @@ enum WIDTH = 1024;
 enum HEIGHT = 768;
 enum FOV = (PI/2.0);
 
-// NOTE: Maybe move these structs to a Raytracing.h?
 struct Material {
     float refractive_index = 1.0;
     Vec4f albedo = {1.0, 0.0, 0.0, 0.0};
@@ -138,7 +84,7 @@ struct Light {
 
 // Returns true if the ray intersects the sphere.
 // Also mutates the first_intersect_distance parameter to reflect the location of the first intersection.
-static bool
+private bool
 ray_intersects_sphere(const ref Ray ray, const ref Sphere sphere, ref float first_intersect_distance) {
     // The fact that this function is not self-explanatory saddens me. Especially since I'm
     // trying to name things in an explanatory way. I'll put a list of resources to
@@ -159,21 +105,18 @@ ray_intersects_sphere(const ref Ray ray, const ref Sphere sphere, ref float firs
     first_intersect_distance      = tc - half_length_of_ray_inside_circle;
     float last_intersect_distance = tc + half_length_of_ray_inside_circle;
 
-    // If looking at earlier commits, you might see that I thought the compiler optimizes out some of the next 3 lines.
-    // Actually it doesn't, I was comparing a float* to 0. So the compiler thought, rightly, we'd never execute the
-    // if (pointer is lower than 0) { do thing } instruction. There should really be a warning for this, and if there is one,
-    // it should really be enabled by default.
     if (first_intersect_distance < 0.0) { first_intersect_distance = last_intersect_distance; } // Maybe intersects at only one point?
     if ( last_intersect_distance < 0.0) { return false; }
     else { return true; }
 }
 
-Vec3f
+private Vec3f
 reflection_vector(Vec3f light_direction, Vec3f surface_normal) {
     return light_direction - (surface_normal * (2.0 * (light_direction * surface_normal)));
 }
 
-Vec3f refraction_vector(Vec3f light_vector, Vec3f normal, float refractive_index) { // Snell's law
+private Vec3f
+refraction_vector(Vec3f light_vector, Vec3f normal, float refractive_index) { // Snell's law
     float cos_incidence = -1 * (light_vector * normal); // Cosine of the angle of the incidence
 
     if      (cos_incidence >  1) { cos_incidence =  1; }
@@ -199,7 +142,7 @@ Vec3f refraction_vector(Vec3f light_vector, Vec3f normal, float refractive_index
     }
 }
 
-static bool
+private bool
 scene_intersect(ref const Ray ray, const Sphere[] spheres, ref Vec3f hit_point, ref Vec3f surface_normal, ref Material material) {
     float spheres_distance = float.max;
 
@@ -242,7 +185,7 @@ scene_intersect(ref const Ray ray, const Sphere[] spheres, ref Vec3f hit_point, 
 }
 
 // Return color of the sphere if intersected, otherwise returns background color.
-static Vec3f
+private Vec3f
 cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t depth) {
     Vec3f point, surface_normal;
     Material material;
@@ -303,7 +246,8 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
                 shadow_origin = point + (surface_normal * 1e-3);
             }
 
-            Vec3f shadow_point, shadow_normal; Material temp_material;
+            Vec3f shadow_point, shadow_normal;
+            Material temp_material;
 
             Ray temp_ray = {shadow_origin, light_direction};
             bool light_intersected = scene_intersect(temp_ray, spheres, shadow_point, shadow_normal, temp_material);
@@ -333,17 +277,18 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
     return lighting + reflect_refract;
 }
 
-// NOTE: Move this to a utils.h (?) when working on Raycasting or Software Rendering.
 void
-dump_ppm_image(Vec3f[] buffer, int width, int height) {
+dump_ppm_image(Vec3f[] buffer, int width, int height, string filename = "out.ppm") {
     // Size of buffer parametre must be width * height!
     // Dump the image to a PPM file.
 
-    auto fp = fopen("out.ppm", "wb");
+    import std.string : toStringz;
+    auto fp = fopen(filename.toStringz(), "wb");
     if (!fp) {
         puts("Can't open file for writing.");
         return;
     }
+    scope(exit) fclose(fp);
 
     char[64] header;
     size_t count = sprintf(cast(char*)header, "P6\n%d %d\n255\n", width, height);
@@ -352,13 +297,13 @@ dump_ppm_image(Vec3f[] buffer, int width, int height) {
     foreach (ref pixel; buffer) {
         {
             // Check if any of the vec elements is greater than one.
-            float max = pixel.x > pixel.y ? pixel.x : pixel.y;
-            max = max > pixel.z ? max : pixel.z;
+            import std.algorithm.comparison : max;
+            immutable float maximum = max(pixel.x, pixel.y, pixel.z);
 
-            if (max > 1) {
-                pixel.x /= max;
-                pixel.y /= max;
-                pixel.z /= max;
+            if (maximum > 1) {
+                pixel.x /= maximum;
+                pixel.y /= maximum;
+                pixel.z /= maximum;
             }
         }
 
@@ -372,11 +317,9 @@ dump_ppm_image(Vec3f[] buffer, int width, int height) {
         // no need to use fseek or something.
         fwrite(cast(void*)rgb, ubyte.sizeof, 3, fp);
     }
-
-    fclose(fp);
 }
 
-static void
+private void
 render(const Sphere[] spheres, const Light[] lights) {
     Vec3f[] framebuffer = new Vec3f[WIDTH * HEIGHT];
 
