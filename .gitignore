@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/graphics-from-scratch-in-d
+graphics-from-scratch-in-d.so
+graphics-from-scratch-in-d.dylib
+graphics-from-scratch-in-d.dll
+graphics-from-scratch-in-d.a
+graphics-from-scratch-in-d.lib
+graphics-from-scratch-in-d-test-*
+*.exe
+*.o
+*.obj
+*.lst

@@ -1,0 +1,9 @@
+{
+	"authors": [
+		"akgvn"
+	],
+	"copyright": "Copyright © 2021, akgvn",
+	"description": "Following G. Gambetta's book using D.",
+	"license": "proprietary",
+	"name": "graphics-from-scratch-in-d"
+}
