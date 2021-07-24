@@ -32,42 +32,32 @@ struct Vec3f {
         z /= norm;
     }
 
-    static float multiply(Vec3f lhs, Vec3f rhs) { return (lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z); }
-
-    static Vec3f multiply(Vec3f lhs, float rhs) {
-        Vec3f ret = {
-            x : lhs.x * rhs,
-            y : lhs.y * rhs,
-            z : lhs.z * rhs,
-        };
-        return ret;
-    }
-
-    static Vec3f cross(Vec3f v1, Vec3f v2) {
-        Vec3f ret = {
-            x : v1.y*v2.z - v1.z*v2.y,
-            y : v1.z*v2.x - v1.x*v2.z,
-            z : v1.x*v2.y - v1.y*v2.x,
-        };
-        return ret;
-    }
-
-    static Vec3f add(Vec3f lhs, Vec3f rhs) {
-        Vec3f ret = {
-            x : lhs.x + rhs.x,
-            y : lhs.y + rhs.y,
-            z : lhs.z + rhs.z,
-        };
-        return ret;
-    }
-
-    static Vec3f sub(Vec3f lhs, Vec3f rhs) {
-        Vec3f ret = {
-            x : lhs.x - rhs.x,
-            y : lhs.y - rhs.y,
-            z : lhs.z - rhs.z,
-        };
-        return ret;
+    import std.traits: isNumeric;
+    auto opBinary(string op, T)(T rhs) const pure nothrow if ((op == "*" || op == "+" || op == "-")) {
+        static if (is(T == Vec3f) || is(T == const(Vec3f))) {
+            static if (op == "+") {
+                return Vec3f(
+                    x + rhs.x,
+                    y + rhs.y,
+                    z + rhs.z,
+                );
+            }
+            else static if (op == "-") {
+                return Vec3f(
+                    x - rhs.x,
+                    y - rhs.y,
+                    z - rhs.z,
+                );
+            }
+            else static if (op == "*") {
+                return (x * rhs.x + y * rhs.y + z * rhs.z);
+            }
+            else static assert(0, "Operator " ~ op ~ " not implemented");
+        }
+        else static if (isNumeric!T && op == "*") {
+            return Vec3f(x * rhs, y * rhs, z * rhs);
+        }
+        else static assert(0, "Operator " ~ op ~ " not implemented");
     }
 
     void print() { printf("Vec3f { %f, %f, %f }\n", this.x, this.y, this.z); }
@@ -154,11 +144,11 @@ ray_intersects_sphere(const ref Ray ray, const ref Sphere sphere, ref float firs
     // trying to name things in an explanatory way. I'll put a list of resources to
     // understand what is going on here to the readme.
 
-    Vec3f L = Vec3f.sub(sphere.center, ray.origin); // sphere_center_to_ray_origin_distance
+    Vec3f L = sphere.center - ray.origin; // sphere_center_to_ray_origin_distance
 
-    float tc = Vec3f.multiply(L, ray.direction); // tc is the distance of sphere center to ray origin along the ray direction vector.
+    float tc = L * ray.direction; // tc is the distance of sphere center to ray origin along the ray direction vector.
 
-    float center_to_ray_straight_distance = Vec3f.multiply(L, L) - tc*tc;
+    float center_to_ray_straight_distance = (L * L) - tc*tc;
     float radius_squared = sphere.radius * sphere.radius;
 
     // Check if the ray is not inside the sphere
@@ -180,14 +170,11 @@ ray_intersects_sphere(const ref Ray ray, const ref Sphere sphere, ref float firs
 
 Vec3f
 reflection_vector(Vec3f light_direction, Vec3f surface_normal) {
-    return Vec3f.sub(
-        light_direction,
-        Vec3f.multiply(surface_normal, 2.0 * Vec3f.multiply(light_direction, surface_normal))
-    );
+    return light_direction - (surface_normal * (2.0 * (light_direction * surface_normal)));
 }
 
 Vec3f refraction_vector(Vec3f light_vector, Vec3f normal, float refractive_index) { // Snell's law
-    float cos_incidence = -1 * Vec3f.multiply(light_vector, normal); // Cosine of the angle of the incidence
+    float cos_incidence = -1 * (light_vector * normal); // Cosine of the angle of the incidence
 
     if      (cos_incidence >  1) { cos_incidence =  1; }
     else if (cos_incidence < -1) { cos_incidence = -1; }
@@ -198,7 +185,7 @@ Vec3f refraction_vector(Vec3f light_vector, Vec3f normal, float refractive_index
     if (cos_incidence < 0) { // Is the ray inside the object?
         cos_incidence = -cos_incidence;
         refractive_indices_ratio = refractive_index; // swap the indices
-        refraction_normal = Vec3f.multiply(normal, -1); // invert the normal
+        refraction_normal = (normal * -1); // invert the normal
     } else { // not inside the object, go on
         refractive_indices_ratio = 1.0 / refractive_index;
         refraction_normal = normal;
@@ -208,10 +195,7 @@ Vec3f refraction_vector(Vec3f light_vector, Vec3f normal, float refractive_index
     if (cos_refraction_squared < 0) {
         return Vec3f(0, 0, 0);
     } else {
-        return Vec3f.add(
-            Vec3f.multiply(light_vector, refractive_indices_ratio),
-            Vec3f.multiply(refraction_normal, (refractive_indices_ratio * cos_incidence) - sqrt(cos_refraction_squared))
-        );
+        return (light_vector * refractive_indices_ratio) + (refraction_normal * ((refractive_indices_ratio * cos_incidence) - sqrt(cos_refraction_squared)));
     }
 }
 
@@ -227,9 +211,9 @@ scene_intersect(ref const Ray ray, const Sphere[] spheres, ref Vec3f hit_point, 
         if (current_sphere_intersects && (distance_of_i < spheres_distance)) {
             spheres_distance = distance_of_i;
 
-            hit_point = Vec3f.add(ray.origin, Vec3f.multiply(ray.direction, distance_of_i));
+            hit_point = ray.origin + (ray.direction * distance_of_i);
 
-            surface_normal = Vec3f.sub(hit_point, current_sphere.center);
+            surface_normal = hit_point - current_sphere.center;
             surface_normal.normalize();
 
             material = current_sphere.material;
@@ -241,10 +225,7 @@ scene_intersect(ref const Ray ray, const Sphere[] spheres, ref Vec3f hit_point, 
     if (fabs(ray.direction.y) > 1e-3)  {
 
         float board_distance = -(ray.origin.y+4) / ray.direction.y; // the checkerboard plane has equation y = -4
-        Vec3f board_hit_point = Vec3f.add(
-            ray.origin,
-            Vec3f.multiply(ray.direction, board_distance)
-        );
+        Vec3f board_hit_point = ray.origin + (ray.direction * board_distance);
 
         if (board_distance>0 && fabs(board_hit_point.x)<10 && board_hit_point.z<-10 && board_hit_point.z>-30 && board_distance<spheres_distance) {
             checkerboard_distance = board_distance;
@@ -254,7 +235,7 @@ scene_intersect(ref const Ray ray, const Sphere[] spheres, ref Vec3f hit_point, 
             int white_or_orange = (cast(int)(.5*hit_point.x+1000) + cast(int)(.5*hit_point.z));
 
             material.diffuse_color = white_or_orange & 1 ? Vec3f(1, 1, 1) : Vec3f(1, 0.7, 0.3);
-            material.diffuse_color = Vec3f.multiply(material.diffuse_color, 0.3);
+            material.diffuse_color = material.diffuse_color * 0.3;
         }
     }
     return (spheres_distance<1000) || (checkerboard_distance<1000);
@@ -276,10 +257,10 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
 
         Vec3f reflect_origin; // offset the original point to avoid occlusion by the object itself
         {
-            if (Vec3f.multiply(reflect_direction, surface_normal) < 0) {
-                reflect_origin = Vec3f.sub(point, Vec3f.multiply(surface_normal, 1e-3));
+            if (reflect_direction * surface_normal < 0) {
+                reflect_origin = point - (surface_normal * 1e-3);
             } else {
-                reflect_origin = Vec3f.add(point, Vec3f.multiply(surface_normal, 1e-3));
+                reflect_origin = point + (surface_normal * 1e-3);
             }
         }
 
@@ -293,10 +274,10 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
 
         Vec3f refract_origin;
         {
-            if (Vec3f.multiply(refract_direction, surface_normal) < 0) {
-                refract_origin = Vec3f.sub(point, Vec3f.multiply(surface_normal, 1e-3));
+            if (refract_direction * surface_normal < 0) {
+                refract_origin = point - (surface_normal * 1e-3);
             } else {
-                refract_origin = Vec3f.add(point, Vec3f.multiply(surface_normal, 1e-3));
+                refract_origin = point + (surface_normal * 1e-3);
             }
         }
 
@@ -306,55 +287,50 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
 
     float diffuse_light_intensity = 0, specular_light_intensity = 0;
     foreach (ref current_light; lights) {
-        Vec3f light_direction = Vec3f.sub(current_light.position, point);
+        Vec3f light_direction = current_light.position - point;
         light_direction.normalize();
 
         bool in_shadow = false;
         {
             // Can this point see the current light?
-            Vec3f light_to_point_vec = Vec3f.sub(current_light.position, point);
+            Vec3f light_to_point_vec = current_light.position - point;
             float light_distance = light_to_point_vec.norm();
 
             Vec3f shadow_origin;
-            if (Vec3f.multiply(light_direction, surface_normal) < 0) {
-                shadow_origin = Vec3f.sub(point, Vec3f.multiply(surface_normal, 1e-3));
+            if (light_direction * surface_normal < 0) {
+                shadow_origin = point - (surface_normal * 1e-3);
             } else {
-                shadow_origin = Vec3f.add(point, Vec3f.multiply(surface_normal, 1e-3));
+                shadow_origin = point + (surface_normal * 1e-3);
             }
 
             Vec3f shadow_point, shadow_normal; Material temp_material;
 
             Ray temp_ray = {shadow_origin, light_direction};
             bool light_intersected = scene_intersect(temp_ray, spheres, shadow_point, shadow_normal, temp_material);
-            Vec3f pt_to_origin = Vec3f.sub(shadow_point, shadow_origin);
+            Vec3f pt_to_origin = shadow_point - shadow_origin;
             bool obstruction_closer_than_light = pt_to_origin.norm() < light_distance;
             in_shadow = light_intersected && obstruction_closer_than_light;
         }
         if (in_shadow) continue;
 
         // Diffuse Lighting:
-        float surface_illumination_intensity = Vec3f.multiply(light_direction, surface_normal);
+        float surface_illumination_intensity = light_direction * surface_normal;
         if (surface_illumination_intensity < 0) surface_illumination_intensity = 0;
         diffuse_light_intensity += current_light.intensity * surface_illumination_intensity;
 
         // Specular Lighting:
-        float specular_illumination_intensity = Vec3f.multiply(reflection_vector(light_direction, surface_normal), ray.direction);
+        float specular_illumination_intensity = reflection_vector(light_direction, surface_normal) * ray.direction;
         if (specular_illumination_intensity < 0) specular_illumination_intensity = 0;
         specular_illumination_intensity = pow(specular_illumination_intensity, material.specular_exponent);
         specular_light_intensity += current_light.intensity * specular_illumination_intensity;
     }
 
-    Vec3f lighting = Vec3f.add(
-        Vec3f.multiply(material.diffuse_color, diffuse_light_intensity * material.albedo.x),
-        Vec3f.multiply(Vec3f(1.0, 1.0, 1.0), specular_light_intensity * material.albedo.y)
-    );
+    Vec3f lighting = (material.diffuse_color * (diffuse_light_intensity * material.albedo.x)) +
+                     (Vec3f(1.0, 1.0, 1.0) * (specular_light_intensity * material.albedo.y));
 
-    Vec3f reflect_refract = Vec3f.add(
-        Vec3f.multiply(reflect_color, material.albedo.z),
-        Vec3f.multiply(refract_color, material.albedo.w)
-    );
+    Vec3f reflect_refract = (reflect_color * material.albedo.z) + (refract_color * material.albedo.w);
 
-    return Vec3f.add(lighting, reflect_refract);
+    return lighting + reflect_refract;
 }
 
 // NOTE: Move this to a utils.h (?) when working on Raycasting or Software Rendering.
