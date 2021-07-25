@@ -34,15 +34,27 @@ struct Canvas(int Ch, int Cw) {
         int buffer_y = (Ch / 2) - screen_y - 1;
         int buffer_idx = buffer_x + buffer_y * Cw;
 
-        // writefln("Ch = %d, Cw = %d --> Ch * Cw = %d", Ch, Cw, Ch * Cw);
-        // writefln("screen_x = %5d -> buffer_x = %5d", screen_x, buffer_x);
-        // writefln("screen_y = %5d -> buffer_y = %5d", screen_y, buffer_y);
-        // writefln("buffer_idx = %d", buffer_idx);
-
         this.buffer[buffer_idx] = color;
     }
 
     void RenderToFile(string filename = "out.ppm") {
+        // Dump the image to a PPM file.
+        import std.format: format;
+        auto header = cast(ubyte[]) format("P6\n%d %d\n255\n", Cw, Ch);
+
+        // TODO Handle possible exceptions.
+        import std.stdio: File;
+        auto fp = File(filename, "wb");
+        auto writer = fp.lockingBinaryWriter();
+
+        import std.algorithm.mutation: copy;
+        header.copy(writer);
+        buffer.copy(writer);
+    }
+}
+
+/*
+void RenderToFile(string filename = "out.ppm") {
         // Dump the image to a PPM file.
         import std.stdio  : fopen, puts, fwrite, fclose;
         import std.string : toStringz;
@@ -60,4 +72,4 @@ struct Canvas(int Ch, int Cw) {
         auto data_bytes = fwrite(cast(ubyte*) buffer, ubyte.sizeof, buffer.length * 3, fp); // Color is 3 bytes, that's why we're multiplying by 3.
         writeln("Written ", header_bytes + data_bytes, " bytes.");
     }
-}
+    */
