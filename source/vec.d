@@ -2,6 +2,8 @@ import std.traits: isNumeric;
 import std.conv: to;
 import std.math: sqrt;
 
+alias Vec3f = Vector!(3, float);
+
 struct Vector(int n, T = float) if (isNumeric!T) {
     T[n] data = 0;
 
@@ -11,7 +13,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
         data = initial_values;
     }
 
-    static Self add(Self lhs, Self rhs) pure @nogc {
+    static Self add(const Self lhs, const Self rhs) pure @nogc {
         Self new_vec;
 
         for (int i = 0; i < n; i++) {
@@ -21,7 +23,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
         return new_vec;
     }
 
-    static Self sub(Self lhs, Self rhs) pure @nogc {
+    static Self sub(const Self lhs, const Self rhs) pure @nogc {
         Self new_vec;
 
         for (int i = 0; i < n; i++) {
@@ -31,7 +33,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
         return new_vec;
     }
 
-    static float mult(Self lhs, Self rhs) pure @nogc {
+    static float mult(const Self lhs, const Self rhs) pure @nogc {
         auto sum = 0.0;
 
         for (int i = 0; i < n; i++) {
@@ -41,7 +43,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
         return sum;
     }
 
-    static Self mult(K)(Self lhs, K rhs) pure @nogc if (isNumeric!K) {
+    static Self mult(K)(const Self lhs, const K rhs) pure @nogc if (isNumeric!K) {
         Self new_vec;
 
         for (int i = 0; i < n; i++) {
@@ -63,7 +65,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
     }
 
     auto opBinary(string op, T)(T rhs) const pure nothrow if ((op == "*" || op == "+" || op == "-" || op == "/")) {
-        static if (is(T == Self) || is(T == const(Self))) {
+        static if (is(T == Self) || is(T == const(Self)) || is(T == immutable(Self))) {
             static if      (op == "+") { return Self.add(this, rhs); }
             else static if (op == "-") { return Self.sub(this, rhs); }
             else static if (op == "*") { return Self.mult(this, rhs); }

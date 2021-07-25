@@ -52,24 +52,3 @@ struct Canvas(int Ch, int Cw) {
         buffer.copy(writer);
     }
 }
-
-/*
-void RenderToFile(string filename = "out.ppm") {
-        // Dump the image to a PPM file.
-        import std.stdio  : fopen, puts, fwrite, fclose;
-        import std.string : toStringz;
-        auto fp = fopen(filename.toStringz(), "wb");
-        if (!fp) {
-            puts("Can't open file for writing.");
-            return;
-        }
-        scope(exit) fclose(fp);
-
-        import std.format: format;
-        auto header = cast(ubyte[]) format("P6\n%d %d\n255\n", Cw, Ch);
-
-        auto header_bytes = fwrite(cast(ubyte*) header, ubyte.sizeof, header.length, fp);
-        auto data_bytes = fwrite(cast(ubyte*) buffer, ubyte.sizeof, buffer.length * 3, fp); // Color is 3 bytes, that's why we're multiplying by 3.
-        writeln("Written ", header_bytes + data_bytes, " bytes.");
-    }
-    */
