@@ -14,54 +14,22 @@
 // - akgvn, 2021/07/24
 //
 
-struct Vec3f {
-    float x, y, z;
-
-    float norm() { return sqrt(this.x * this.x + this.y * this.y + this.z * this.z); }
-
-    void normalize() {
-        float norm = norm();
-        x /= norm;
-        y /= norm;
-        z /= norm;
-    }
-
-    import std.traits: isNumeric;
-    auto opBinary(string op, T)(T rhs) const pure nothrow if ((op == "*" || op == "+" || op == "-")) {
-        static if (is(T == Vec3f) || is(T == const(Vec3f))) {
-            static if (op == "+") {
-                return Vec3f(x + rhs.x, y + rhs.y, z + rhs.z);
-            }
-            else static if (op == "-") {
-                return Vec3f(x - rhs.x, y - rhs.y, z - rhs.z);
-            }
-            else static if (op == "*") {
-                return (x * rhs.x + y * rhs.y + z * rhs.z);
-            }
-            else static assert(0, "Operator " ~ op ~ " not implemented.");
-        }
-        else static if (isNumeric!T && op == "*") {
-            return Vec3f(x * rhs, y * rhs, z * rhs);
-        }
-        else static assert(0, "Operator " ~ op ~ " not implemented for " ~ T.stringof ~ ".");
-    }
-
-    void print() { printf("Vec3f { %f, %f, %f }\n", this.x, this.y, this.z); }
-}
-
-struct Vec4f { float x, y, z, w; }
+import vec: Vector;
+alias Vec3f = Vector!(3, float);
+alias Vec4f = Vector!(4, float); // struct Vec4f { float x, y, z, w; }
 
 import std.stdio : printf, fopen, puts, sprintf, fwrite, fclose;
 import std.math : PI, sqrt, pow, fabs, tan;
+import std.traits: isNumeric;
 
-enum WIDTH = 1024;
+enum WIDTH  = 1024;
 enum HEIGHT = 768;
-enum FOV = (PI/2.0);
+enum FOV    = (PI/2.0);
 
 struct Material {
     float refractive_index = 1.0;
-    Vec4f albedo = {1.0, 0.0, 0.0, 0.0};
-    Vec3f diffuse_color = {0.0, 0.0, 0.0};
+    Vec4f albedo = Vec4f([1.0, 0.0, 0.0, 0.0]);
+    Vec3f diffuse_color = Vec3f([0.0, 0.0, 0.0]);
     float specular_exponent = 0.0; // "shininess"?
 };
 
@@ -135,10 +103,10 @@ refraction_vector(Vec3f light_vector, Vec3f normal, float refractive_index) { //
     }
 
     float cos_refraction_squared = 1 - ((refractive_indices_ratio * refractive_indices_ratio) * (1 - cos_incidence*cos_incidence));
-    if (cos_refraction_squared < 0) {
-        return Vec3f(0, 0, 0);
-    } else {
-        return (light_vector * refractive_indices_ratio) + (refraction_normal * ((refractive_indices_ratio * cos_incidence) - sqrt(cos_refraction_squared)));
+    if (cos_refraction_squared < 0) { return Vec3f(0, 0, 0); }
+    else {
+        return (light_vector * refractive_indices_ratio) +
+            (refraction_normal * ((refractive_indices_ratio * cos_incidence) - sqrt(cos_refraction_squared)));
     }
 }
 
@@ -278,7 +246,7 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
 }
 
 void
-dump_ppm_image(Vec3f[] buffer, int width, int height, string filename = "out.ppm") {
+dump_ppm_image(Vec3f[] buffer, const int width, const int height, string filename = "out.ppm") {
     // Size of buffer parametre must be width * height!
     // Dump the image to a PPM file.
 
@@ -290,10 +258,16 @@ dump_ppm_image(Vec3f[] buffer, int width, int height, string filename = "out.ppm
     }
     scope(exit) fclose(fp);
 
-    char[64] header;
-    size_t count = sprintf(cast(char*)header, "P6\n%d %d\n255\n", width, height);
-    fwrite(cast(void*)header, ubyte.sizeof, count, fp); // Write the PPM header.
+    // char[64] header;
+    // size_t count = sprintf(cast(char*)header, "P6\n%d %d\n255\n", width, height);
+    // fwrite(cast(void*)header, ubyte.sizeof, count, fp); // Write the PPM header.
 
+    import std.format: format;
+    auto str = cast(ubyte[]) format("P6\n%d %d\n255\n", width, height);
+    // fwrite(cast(void*)str, ubyte.sizeof, str.length, fp); // Write the PPM header.
+    auto buff = str ~ new ubyte[buffer.length * 3];
+
+    auto idx = str.length;
     foreach (ref pixel; buffer) {
         {
             // Check if any of the vec elements is greater than one.
@@ -307,16 +281,15 @@ dump_ppm_image(Vec3f[] buffer, int width, int height, string filename = "out.ppm
             }
         }
 
-        ubyte x = cast(ubyte)(pixel.x * 255);
-        ubyte y = cast(ubyte)(pixel.y * 255);
-        ubyte z = cast(ubyte)(pixel.z * 255);
+        buff[idx + 0] = cast(ubyte)(pixel.x * 255);
+        buff[idx + 1] = cast(ubyte)(pixel.y * 255);
+        buff[idx + 2] = cast(ubyte)(pixel.z * 255);
 
-        ubyte[3] rgb = [x, y, z];
-
-        // Note to self: fwrite moves the file cursor,
-        // no need to use fseek or something.
-        fwrite(cast(void*)rgb, ubyte.sizeof, 3, fp);
+        idx += 3;
     }
+
+    // Write it all at once.
+    fwrite(cast(void*)buff, ubyte.sizeof, buff.length, fp);
 }
 
 private void

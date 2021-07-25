@@ -4,8 +4,14 @@ import std.conv: to;
 struct Vector(int n, T = float) if (isNumeric!T) {
 	T[n] data = 0;
 
-	Vector!(n, T) add(Vector!(n, T) lhs, Vector!(n, T) rhs) @nogc {
-		Vector!(n, T) new_vec;
+	alias Self = Vector!(n, T);
+
+	this(T[n] initial_values) {
+		data = initial_values;
+	}
+
+	Self add(Self lhs, Self rhs) pure @nogc {
+		Self new_vec;
 
 		for (int i = 0; i < n; i++) {
 			new_vec.data[i] = lhs.data[i] + rhs.data[i];
@@ -14,8 +20,8 @@ struct Vector(int n, T = float) if (isNumeric!T) {
 		return new_vec;
 	}
 
-	Vector!(n, T) sub(Vector!(n, T) lhs, Vector!(n, T) rhs) @nogc {
-		Vector!(n, T) new_vec;
+	Self sub(Self lhs, Self rhs) pure @nogc {
+		Self new_vec;
 
 		for (int i = 0; i < n; i++) {
 			new_vec.data[i] = lhs.data[i] - rhs.data[i];
@@ -25,8 +31,8 @@ struct Vector(int n, T = float) if (isNumeric!T) {
 
 	}
 
-	Vector!(n, T) mult(Vector!(n, T) lhs, Vector!(n, T) rhs) @nogc {
-		Vector!(n, T) new_vec;
+	Self mult(Self lhs, Self rhs) pure @nogc {
+		Self new_vec;
 
 		for (int i = 0; i < n; i++) {
 			new_vec.data[i] = lhs.data[i] * rhs.data[i];
@@ -35,8 +41,8 @@ struct Vector(int n, T = float) if (isNumeric!T) {
 		return new_vec;
 	}
 
-	Vector!(n, T) mult(K)(Vector!(n, T) lhs, K rhs) @nogc if (isNumeric!K) {
-		Vector!(n, T) new_vec;
+	Self mult(K)(Self lhs, K rhs) pure @nogc if (isNumeric!K) {
+		Self new_vec;
 
 		for (int i = 0; i < n; i++) {
 			new_vec.data[i] = lhs.data[i] * rhs;
@@ -58,3 +64,31 @@ struct Vector(int n, T = float) if (isNumeric!T) {
 // Cross product
 // Normalize
 // Get norm
+
+/*
+struct Vec3f {
+    float x, y, z;
+
+    float norm() { return sqrt(this.x * this.x + this.y * this.y + this.z * this.z); }
+
+    void normalize() {
+        float norm = norm();
+        x /= norm;
+        y /= norm;
+        z /= norm;
+    }
+
+    auto opBinary(string op, T)(T rhs) const pure nothrow if ((op == "*" || op == "+" || op == "-")) {
+        static if (is(T == Vec3f) || is(T == const(Vec3f))) {
+            static if      (op == "+") { return Vec3f(x + rhs.x, y + rhs.y, z + rhs.z); }
+            else static if (op == "-") { return Vec3f(x - rhs.x, y - rhs.y, z - rhs.z); }
+            else static if (op == "*") { return (x * rhs.x + y * rhs.y + z * rhs.z); }
+            else static assert(0, "Operator " ~ op ~ " not implemented.");
+        }
+        else static if (isNumeric!T && op == "*") { return Vec3f(x * rhs, y * rhs, z * rhs); }
+        else static assert(0, "Operator " ~ op ~ " not implemented for " ~ T.stringof ~ ".");
+    }
+
+    void print() { printf("Vec3f { %f, %f, %f }\n", this.x, this.y, this.z); }
+}
+*/
