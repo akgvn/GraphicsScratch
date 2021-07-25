@@ -12,6 +12,7 @@ struct Sphere {
     Vec3f center;
     float radius;
     Color color;
+    int specular;
 
     Vec3f normal(const ref Vec3f point) {
     	Vec3f direction = point - center;
@@ -33,10 +34,10 @@ enum BACKGROUND_COLOR = Color(255, 255, 255); // White
 
 static Scene scene = {
 	spheres: [
-		{[0, -1, 3], 1, {255, 0, 0}}, // Red
-		{[ 2, 0, 4], 1, {0, 0, 255}}, // Blue
-		{[-2, 0, 4], 1, {0, 255, 0}}, // Green
-		{[0, -5001, 0], 5000, {255, 255, 0}}, // Yellow
+		{[0, -1, 3], 1, {255, 0, 0}, 500}, // Red
+		{[ 2, 0, 4], 1, {0, 0, 255}, 500}, // Blue
+		{[-2, 0, 4], 1, {0, 255, 0}, 10}, // Green
+		{[0, -5001, 0], 5000, {255, 255, 0}, 5000}, // Yellow
 	],
 	lights: [
 		Light(Ambient_Light(0.2)),
@@ -46,10 +47,6 @@ static Scene scene = {
 };
 
 void main() {
-	// Integrating the new utility functions into the old
-	// raytracer so that we'll know if something is broken.
-	// old_raytracer_main(); // Not anymore. We're doing new stuff.
-
 	auto O = Vec3f([0, 0, 0]);
 
 	Canvas!(Ch, Cw) canvas;
@@ -100,10 +97,10 @@ Color TraceRay(const ref Vec3f O, const ref Vec3f D, const float t_min, const fl
 	auto P = O + (D * closest_t);  // Compute intersection
 	auto N = P - closest_sphere.center;  // Compute sphere normal at intersection
 	N.normalize();
-	return closest_sphere.color * ComputeLighting(P, N);
+	return closest_sphere.color * ComputeLighting(P, N, D * -1, closest_sphere.specular);
 }
 
-import std.math : sqrt;
+import std.math : sqrt, pow;
 import std.typecons : tuple, Tuple;
 Tuple!(float, float) IntersectRaySphere(const ref Vec3f O, const ref Vec3f D, const ref Sphere sphere) {
 	immutable r = sphere.radius;
@@ -122,10 +119,10 @@ Tuple!(float, float) IntersectRaySphere(const ref Vec3f O, const ref Vec3f D, co
 	return tuple(t1, t2);
 }
 
-float ComputeLighting(const ref Vec3f P, const ref Vec3f N) {
+float ComputeLighting(const ref Vec3f P, const ref Vec3f N, const Vec3f viewing_direction, const int specular_exponent) {
 	float i = 0.0;
 
-	foreach (ref light; scene.lights) { i += light.ComputeIntensity(P, N); }
+	foreach (ref light; scene.lights) { i += light.ComputeIntensity(P, N, viewing_direction, specular_exponent); }
 
 	return i;
 }
@@ -137,17 +134,17 @@ struct Light {
 		Directional,
 	}
 
-	this(Ambient_Light light) {
+	this(Ambient_Light light) @nogc pure {
 		type = Light_Type.Ambient;
 		al = light;
 	}
 
-	this(Point_Light light) {
+	this(Point_Light light) @nogc pure {
 		type = Light_Type.Point;
 		pl = light;
 	}
 
-	this(Directional_Light light) {
+	this(Directional_Light light) @nogc pure {
 		type = Light_Type.Directional;
 		dl = light;
 	}
@@ -160,7 +157,7 @@ struct Light {
 		Directional_Light dl;
 	}
 
-	float ComputeIntensity(const ref Vec3f point, const ref Vec3f normal) {
+	float ComputeIntensity(const ref Vec3f point, const ref Vec3f normal, const ref Vec3f viewing_direction, const int specular_exponent) const @nogc pure {
 		Vec3f L;
 		float intensity;
 
@@ -180,11 +177,17 @@ struct Light {
 		immutable n_dot_l = normal * L;
 
 		auto i = 0.0;
-		if (n_dot_l > 0) {
-			i = (intensity * n_dot_l) / (normal.norm() * L.norm());
-		}
+		if (n_dot_l > 0) { i = (intensity * n_dot_l) / (normal.norm() * L.norm()); }
 
-		// Specular will be here soon.
+		// Specular lighting
+		if (specular_exponent != -1) {
+			immutable R = ((normal * 2) * n_dot_l) - L;
+			immutable r_dot_v = R * viewing_direction;
+
+			if (r_dot_v > 0) {
+				i += intensity * pow(r_dot_v / (R.norm() * viewing_direction.norm()), specular_exponent);
+			}
+		}
 
 		return i;
 	}
@@ -193,10 +196,12 @@ struct Light {
 struct Ambient_Light {
 	float intensity;
 }
+
 struct Point_Light {
 	float intensity;
 	Vec3f position;
 }
+
 struct Directional_Light {
 	float intensity;
 	Vec3f direction;
