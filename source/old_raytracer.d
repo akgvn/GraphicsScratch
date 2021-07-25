@@ -16,7 +16,7 @@
 
 import vec: Vector;
 alias Vec3f = Vector!(3, float);
-alias Vec4f = Vector!(4, float); // struct Vec4f { float x, y, z, w; }
+alias Vec4f = Vector!(4, float);
 
 import std.stdio : printf, fopen, puts, sprintf, fwrite, fclose;
 import std.math : PI, sqrt, pow, fabs, tan;
@@ -103,7 +103,7 @@ refraction_vector(Vec3f light_vector, Vec3f normal, float refractive_index) { //
     }
 
     float cos_refraction_squared = 1 - ((refractive_indices_ratio * refractive_indices_ratio) * (1 - cos_incidence*cos_incidence));
-    if (cos_refraction_squared < 0) { return Vec3f(0, 0, 0); }
+    if (cos_refraction_squared < 0) { return Vec3f([0, 0, 0]); }
     else {
         return (light_vector * refractive_indices_ratio) +
             (refraction_normal * ((refractive_indices_ratio * cos_incidence) - sqrt(cos_refraction_squared)));
@@ -141,15 +141,15 @@ scene_intersect(ref const Ray ray, const Sphere[] spheres, ref Vec3f hit_point, 
         if (board_distance>0 && fabs(board_hit_point.x)<10 && board_hit_point.z<-10 && board_hit_point.z>-30 && board_distance<spheres_distance) {
             checkerboard_distance = board_distance;
             hit_point = board_hit_point;
-            surface_normal = Vec3f(0, 1, 0);
+            surface_normal = Vec3f([0, 1, 0]);
 
             int white_or_orange = (cast(int)(.5*hit_point.x+1000) + cast(int)(.5*hit_point.z));
 
-            material.diffuse_color = white_or_orange & 1 ? Vec3f(1, 1, 1) : Vec3f(1, 0.7, 0.3);
+            material.diffuse_color = white_or_orange & 1 ? Vec3f([1, 1, 1]) : Vec3f([1, 0.7, 0.3]);
             material.diffuse_color = material.diffuse_color * 0.3;
         }
     }
-    return (spheres_distance<1000) || (checkerboard_distance<1000);
+    return (spheres_distance < 1000) || (checkerboard_distance < 1000);
 }
 
 // Return color of the sphere if intersected, otherwise returns background color.
@@ -159,7 +159,7 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
     Material material;
 
     if (depth > 5 || !scene_intersect(ray, spheres, point, surface_normal, material)) {
-        return Vec3f(0.2, 0.7, 0.8); // Background color
+        return Vec3f([0.2, 0.7, 0.8]); // Background color
     }
 
     Vec3f reflect_color;
@@ -238,7 +238,7 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
     }
 
     Vec3f lighting = (material.diffuse_color * (diffuse_light_intensity * material.albedo.x)) +
-                     (Vec3f(1.0, 1.0, 1.0) * (specular_light_intensity * material.albedo.y));
+                     (Vec3f([1.0, 1.0, 1.0]) * (specular_light_intensity * material.albedo.y));
 
     Vec3f reflect_refract = (reflect_color * material.albedo.z) + (refract_color * material.albedo.w);
 
@@ -274,11 +274,8 @@ dump_ppm_image(Vec3f[] buffer, const int width, const int height, string filenam
             import std.algorithm.comparison : max;
             immutable float maximum = max(pixel.x, pixel.y, pixel.z);
 
-            if (maximum > 1) {
-                pixel.x /= maximum;
-                pixel.y /= maximum;
-                pixel.z /= maximum;
-            }
+            // TODO implement overload for "/="
+            if (maximum > 1) { pixel = pixel / maximum; }
         }
 
         buff[idx + 0] = cast(ubyte)(pixel.x * 255);
@@ -306,10 +303,10 @@ render(const Sphere[] spheres, const Light[] lights) {
             float x =  (screen_width * (col + 0.5)/cast(float)WIDTH  - 1)* WIDTH/cast(float)HEIGHT;
             float y = -(screen_width * (row + 0.5)/cast(float)HEIGHT - 1);
 
-            Vec3f dir = {x, y, -1};
-
+            auto dir = Vec3f([x, y, -1]);
             dir.normalize();
-            Ray ray = {origin: Vec3f(0, 0, 0), direction: dir};
+
+            Ray ray = {[0, 0, 0], dir};
 
             // Writing [col * row + WIDTH] instead of the current expression just cost
             // me 1.5 hours of debugging. Sigh. Don't write code when you're sleepy!
@@ -321,22 +318,22 @@ render(const Sphere[] spheres, const Light[] lights) {
 }
 
 void main() {
-    Material      ivory = {1.0, {0.6,  0.3, 0.1, 0.0}, {0.4, 0.4, 0.3},   50.0};
-    Material      glass = {1.5, {0.0,  0.5, 0.1, 0.8}, {0.6, 0.7, 0.8},  125.0};
-    Material red_rubber = {1.0, {0.9,  0.1, 0.0, 0.0}, {0.3, 0.1, 0.1},   10.0};
-    Material     mirror = {1.0, {0.0, 10.0, 0.8, 0.0}, {1.0, 1.0, 1.0}, 1425.0};
+    Material      ivory = {1.0, [0.6,  0.3, 0.1, 0.0], [0.4, 0.4, 0.3],   50.0};
+    Material      glass = {1.5, [0.0,  0.5, 0.1, 0.8], [0.6, 0.7, 0.8],  125.0};
+    Material red_rubber = {1.0, [0.9,  0.1, 0.0, 0.0], [0.3, 0.1, 0.1],   10.0};
+    Material     mirror = {1.0, [0.0, 10.0, 0.8, 0.0], [1.0, 1.0, 1.0], 1425.0};
 
     Sphere[] spheres = [
-        {center: Vec3f(-3,    0,   -16), radius: 2, material:      ivory},
-        {center: Vec3f(-1.0, -1.5, -12), radius: 2, material:      glass},
-        {center: Vec3f( 1.5, -0.5, -18), radius: 3, material: red_rubber},
-        {center: Vec3f( 7,    5,   -18), radius: 4, material:     mirror},
+        {[-3,    0,   -16], 2,      ivory},
+        {[-1.0, -1.5, -12], 2,      glass},
+        {[ 1.5, -0.5, -18], 3, red_rubber},
+        {[ 7,    5,   -18], 4,     mirror},
     ];
 
     Light[] lights = [
-        {position: Vec3f(-20, 20,  20), intensity: 1.5},
-        {position: Vec3f( 30, 50, -25), intensity: 1.8},
-        {position: Vec3f( 30, 20,  30), intensity: 1.7},
+        {[-20, 20,  20], 1.5},
+        {[ 30, 50, -25], 1.8},
+        {[ 30, 20,  30], 1.7},
     ];
 
     render(spheres, lights);
