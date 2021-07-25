@@ -247,9 +247,7 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
 
 private void
 render(const Sphere[] spheres, const Light[] lights) {
-    import canvas: Canvas;
-    Canvas!(HEIGHT, WIDTH) canv;
-    scope(exit) canv.RenderToFile();
+    auto framebuffer = new Color[HEIGHT * WIDTH];
 
     // Each pixel in the resulting image will have an RGB value, represented by the Vec3f type.
     for (size_t row = 0; row < HEIGHT; row++) {
@@ -266,8 +264,47 @@ render(const Sphere[] spheres, const Light[] lights) {
 
             Ray ray = {[0, 0, 0], dir};
 
-            canv.buffer[col + row * WIDTH] = cast_ray(ray, spheres, lights, 0);
+            Color the_color = cast_ray(ray, spheres, lights, 0);
+
+            framebuffer[col + row * WIDTH] = the_color;
         }
+    }
+
+    {
+        // Dump the image to a PPM file.
+        import std.stdio  : fopen, puts, fwrite, fclose;
+        auto fp = fopen("out.ppm", "wb");
+        if (!fp) {
+            puts("Can't open file for writing.");
+            return;
+        }
+        scope(exit) fclose(fp);
+
+        import std.format: format;
+        auto str = cast(ubyte[]) format("P6\n%d %d\n255\n", WIDTH, HEIGHT);
+        fwrite(cast(void*)str, ubyte.sizeof, str.length, fp); // Write the PPM header.
+
+        auto idx = 0;
+        auto file_buffer = new ubyte[WIDTH * HEIGHT * 3];
+        foreach (ref pixel; framebuffer) {
+            {
+                // Check if any of the vec elements is greater than one.
+                import std.algorithm.comparison : max;
+                immutable float maximum = max(pixel.x, pixel.y, pixel.z);
+
+                // TODO implement overload for "/="
+                if (maximum > 1) { pixel = pixel / maximum; }
+            }
+
+            file_buffer[idx + 0] = cast(ubyte)(pixel.x * 255);
+            file_buffer[idx + 1] = cast(ubyte)(pixel.y * 255);
+            file_buffer[idx + 2] = cast(ubyte)(pixel.z * 255);
+
+            idx += 3;
+        }
+
+        // Write it all at once.
+        fwrite(cast(void*)file_buffer, ubyte.sizeof, file_buffer.length, fp);
     }
 }
 
