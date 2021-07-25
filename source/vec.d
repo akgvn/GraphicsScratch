@@ -51,7 +51,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
         return new_vec;
     }
 
-    auto norm() {
+    auto norm() const pure nothrow {
         T sum = 0;
         foreach (member; data) { sum += member * member; }
         return sqrt(sum);

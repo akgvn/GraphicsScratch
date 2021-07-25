@@ -1,9 +1,11 @@
 import std.stdio;
 import vec;
+import canvas;
+import old_raytracer;
 
-void main()
-{
-	Vector!(3, float) vec3f;
-	writeln("Edit source/app.d to start your project.");
+void main() {
+	// Integrating the new utility functions into the old
+	// raytracer so that we'll know if something is broken.
+	old_raytracer_main();
+	writeln("Done");
 }
-

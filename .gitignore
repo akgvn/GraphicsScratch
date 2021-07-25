@@ -14,3 +14,4 @@ graphics-from-scratch-in-d-test-*
 *.obj
 *.lst
 source/out.ppm
+*.ppm

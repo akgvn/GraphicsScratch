@@ -17,19 +17,20 @@
 import vec: Vector;
 alias Vec3f = Vector!(3, float);
 alias Vec4f = Vector!(4, float);
+alias Color = Vec3f;
 
-import std.stdio : printf, fopen, puts, sprintf, fwrite, fclose;
-import std.math : PI, sqrt, pow, fabs, tan;
-import std.traits: isNumeric;
+import std.stdio  : writeln, printf, fopen, puts, sprintf, fwrite, fclose;
+import std.math   : PI, sqrt, pow, fabs, tan;
+import std.traits : isNumeric;
 
 enum WIDTH  = 1024;
 enum HEIGHT = 768;
-enum FOV    = (PI/2.0);
+enum FOV    = (PI / 2.0); // 90 degrees
 
 struct Material {
     float refractive_index = 1.0;
     Vec4f albedo = Vec4f([1.0, 0.0, 0.0, 0.0]);
-    Vec3f diffuse_color = Vec3f([0.0, 0.0, 0.0]);
+    Color diffuse_color = Vec3f([0.0, 0.0, 0.0]);
     float specular_exponent = 0.0; // "shininess"?
 };
 
@@ -48,7 +49,6 @@ struct Light {
     Vec3f position;
     float intensity;
 };
-
 
 // Returns true if the ray intersects the sphere.
 // Also mutates the first_intersect_distance parameter to reflect the location of the first intersection.
@@ -153,7 +153,7 @@ scene_intersect(ref const Ray ray, const Sphere[] spheres, ref Vec3f hit_point, 
 }
 
 // Return color of the sphere if intersected, otherwise returns background color.
-private Vec3f
+private Color
 cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t depth) {
     Vec3f point, surface_normal;
     Material material;
@@ -204,8 +204,8 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
         bool in_shadow = false;
         {
             // Can this point see the current light?
-            Vec3f light_to_point_vec = current_light.position - point;
-            float light_distance = light_to_point_vec.norm();
+            immutable light_to_point_vec = current_light.position - point;
+            immutable light_distance = light_to_point_vec.norm();
 
             Vec3f shadow_origin;
             if (light_direction * surface_normal < 0) {
@@ -245,53 +245,11 @@ cast_ray(const ref Ray ray, const Sphere[] spheres, const Light[] lights, size_t
     return lighting + reflect_refract;
 }
 
-void
-dump_ppm_image(Vec3f[] buffer, const int width, const int height, string filename = "out.ppm") {
-    // Size of buffer parametre must be width * height!
-    // Dump the image to a PPM file.
-
-    import std.string : toStringz;
-    auto fp = fopen(filename.toStringz(), "wb");
-    if (!fp) {
-        puts("Can't open file for writing.");
-        return;
-    }
-    scope(exit) fclose(fp);
-
-    // char[64] header;
-    // size_t count = sprintf(cast(char*)header, "P6\n%d %d\n255\n", width, height);
-    // fwrite(cast(void*)header, ubyte.sizeof, count, fp); // Write the PPM header.
-
-    import std.format: format;
-    auto str = cast(ubyte[]) format("P6\n%d %d\n255\n", width, height);
-    // fwrite(cast(void*)str, ubyte.sizeof, str.length, fp); // Write the PPM header.
-    auto buff = str ~ new ubyte[buffer.length * 3];
-
-    auto idx = str.length;
-    foreach (ref pixel; buffer) {
-        {
-            // Check if any of the vec elements is greater than one.
-            import std.algorithm.comparison : max;
-            immutable float maximum = max(pixel.x, pixel.y, pixel.z);
-
-            // TODO implement overload for "/="
-            if (maximum > 1) { pixel = pixel / maximum; }
-        }
-
-        buff[idx + 0] = cast(ubyte)(pixel.x * 255);
-        buff[idx + 1] = cast(ubyte)(pixel.y * 255);
-        buff[idx + 2] = cast(ubyte)(pixel.z * 255);
-
-        idx += 3;
-    }
-
-    // Write it all at once.
-    fwrite(cast(void*)buff, ubyte.sizeof, buff.length, fp);
-}
-
 private void
 render(const Sphere[] spheres, const Light[] lights) {
-    Vec3f[] framebuffer = new Vec3f[WIDTH * HEIGHT];
+    import canvas: Canvas;
+    Canvas!(HEIGHT, WIDTH) canv;
+    scope(exit) canv.RenderToFile();
 
     // Each pixel in the resulting image will have an RGB value, represented by the Vec3f type.
     for (size_t row = 0; row < HEIGHT; row++) {
@@ -308,16 +266,13 @@ render(const Sphere[] spheres, const Light[] lights) {
 
             Ray ray = {[0, 0, 0], dir};
 
-            // Writing [col * row + WIDTH] instead of the current expression just cost
-            // me 1.5 hours of debugging. Sigh. Don't write code when you're sleepy!
-            framebuffer[col + row * WIDTH] = cast_ray(ray, spheres, lights, 0);
+            canv.buffer[col + row * WIDTH] = cast_ray(ray, spheres, lights, 0);
         }
     }
-
-    dump_ppm_image(framebuffer, WIDTH, HEIGHT);
 }
 
-void main() {
+void
+old_raytracer_main() {
     Material      ivory = {1.0, [0.6,  0.3, 0.1, 0.0], [0.4, 0.4, 0.3],   50.0};
     Material      glass = {1.5, [0.0,  0.5, 0.1, 0.8], [0.6, 0.7, 0.8],  125.0};
     Material red_rubber = {1.0, [0.9,  0.1, 0.0, 0.0], [0.3, 0.1, 0.1],   10.0};
@@ -335,6 +290,10 @@ void main() {
         {[ 30, 50, -25], 1.8},
         {[ 30, 20,  30], 1.7},
     ];
+
+    auto vec3 = Vec3f([-3, 0, -16]);
+    auto size = vec3.sizeof;
+    writeln(vec3.toString(), " has size: ", size, " bytes.");
 
     render(spheres, lights);
 }
