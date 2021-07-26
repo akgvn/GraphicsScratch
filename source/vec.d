@@ -82,6 +82,17 @@ struct Vector(int n, T = float) if (isNumeric!T) {
         }
         else static if (isNumeric!T && op == "*") { return Self.mult(this, rhs); }
         else static if (isNumeric!T && op == "/") { return Self.mult(this, (1.0/rhs)); }
+        else static if (is(T == Mat3) && op == "*" && n == 3) {
+            Vec3f result = Vec3f([0, 0, 0]);
+
+            for (auto row = 0; row < 3; row++) {
+                for (auto col = 0; col < 3; col++) {
+                    result.data[row] += this.data[col]* rhs.data[row][col];
+                }
+            }
+
+            return result;
+        }
         else static assert(0, "Operator " ~ op ~ " not implemented for " ~ T.stringof ~ ".");
     }
 
@@ -103,3 +114,5 @@ struct Vector(int n, T = float) if (isNumeric!T) {
 
     string toString() { return Self.stringof ~ to!(string)(this.data); }
 }
+
+struct Mat3 { float[3][3] data; } // TODO(ag): Make this a generic struct
