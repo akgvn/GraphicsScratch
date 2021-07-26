@@ -13,6 +13,14 @@ struct Vector(int n, T = float) if (isNumeric!T) {
         data = initial_values;
     }
 
+    Self normalized() const @nogc pure {
+        Self normalized = this;
+
+        float norm = norm();
+
+        return (normalized / norm);
+    }
+
     static Self add(const Self lhs, const Self rhs) pure @nogc {
         Self new_vec;
 
@@ -64,6 +72,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
         foreach (ref member; data) { member /= norm; }
     }
 
+    // TODO maybe inline all the static functions above?
     auto opBinary(string op, T)(T rhs) const pure nothrow if ((op == "*" || op == "+" || op == "-" || op == "/")) {
         static if (is(T == Self) || is(T == const(Self)) || is(T == immutable(Self))) {
             static if      (op == "+") { return Self.add(this, rhs); }
@@ -76,6 +85,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
         else static assert(0, "Operator " ~ op ~ " not implemented for " ~ T.stringof ~ ".");
     }
 
+    // TODO do we need these, really?
     static if (n > 1) {
     	@property T x() const { return data[0]; }
     	@property T x(T val)  { return data[0] = val; }

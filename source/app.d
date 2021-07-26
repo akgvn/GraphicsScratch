@@ -14,9 +14,9 @@ struct Sphere {
     Color color;
     int specular;
 
-    Vec3f normal(const ref Vec3f point) {
-    	Vec3f direction = point - center;
-    	auto magnitude = direction.norm();
+    Vec3f normal(const ref Vec3f point) const @nogc pure {
+    	immutable direction = point - center;
+    	immutable magnitude = direction.norm();
 
     	return direction / magnitude;
     }
@@ -47,14 +47,14 @@ static Scene scene = {
 };
 
 void main() {
-	auto O = Vec3f([0, 0, 0]);
+	immutable O = Vec3f([0, 0, 0]);
 
 	Canvas!(Ch, Cw) canvas;
 
 	for (int x = - (Cw / 2); x < (Cw / 2); x++) {
 		for (int y = - (Ch / 2); y < (Ch / 2); y++) {
-			auto D = CanvasToViewport(x, y);
-			auto color = TraceRay(O, D, d, float.max);
+			immutable D = CanvasToViewport(x, y);
+			immutable color = TraceRay(O, D, d, float.max);
 			canvas.PutPixel(x, y, color);
 		}
 	}
@@ -94,9 +94,12 @@ Color TraceRay(const ref Vec3f O, const ref Vec3f D, const float t_min, const fl
 
 	if (closest_sphere == null) return BACKGROUND_COLOR;
 
-	auto P = O + (D * closest_t);  // Compute intersection
-	auto N = P - closest_sphere.center;  // Compute sphere normal at intersection
-	N.normalize();
+	// Compute intersection
+	immutable P = O + (D * closest_t);
+
+	// Compute sphere normal at intersection
+	immutable N = (P - closest_sphere.center).normalized();
+
 	return closest_sphere.color * ComputeLighting(P, N, D * -1, closest_sphere.specular);
 }
 
@@ -128,7 +131,7 @@ float ComputeLighting(const ref Vec3f P, const ref Vec3f N, const Vec3f viewing_
 }
 
 struct Light {
-	enum Light_Type {
+	enum Light_Type: ubyte {
 		Ambient,
 		Point,
 		Directional,
@@ -151,6 +154,8 @@ struct Light {
 
 	Light_Type type;
 
+	// TODO maybe use `sumtype!` instead of dealing with this?
+	// I'm curious which approach is faster.
 	union {
 		Ambient_Light al;
 		Point_Light pl;
@@ -162,7 +167,8 @@ struct Light {
 		float intensity;
 
 		final switch (type) {
-			case Light_Type.Ambient: return al.intensity;
+			case Light_Type.Ambient:
+				return al.intensity;
 			case Light_Type.Point:
 				L = pl.position - point;
 				intensity = pl.intensity;
@@ -206,4 +212,3 @@ struct Directional_Light {
 	float intensity;
 	Vec3f direction;
 }
-

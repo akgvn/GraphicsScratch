@@ -14,6 +14,12 @@
 // - akgvn, 2021/07/24
 //
 
+// This is not useful anymore and it is
+// breaking the build needlessly. Commenting the
+// file out for a while, and if it still useless
+// get rid of it.
+
+/*
 import vec: Vector;
 alias Vec3f = Vector!(3, float);
 alias Vec4f = Vector!(4, float);
@@ -334,3 +340,4 @@ old_raytracer_main() {
 
     render(spheres, lights);
 }
+*/

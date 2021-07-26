@@ -27,7 +27,7 @@ struct Canvas(int Ch, int Cw) {
 
     // The "camera" is at O = (0, 0, 0), looking towards positive Z axis.
 
-    void PutPixel(int screen_x, int screen_y, Color color) {
+    void PutPixel(int screen_x, int screen_y, Color color) @nogc {
         // Canvas has it's origin point in the middle, but the
         // buffer has it's origin on the top left. Conversion:
         int buffer_x = screen_x + (Cw / 2);
@@ -37,7 +37,7 @@ struct Canvas(int Ch, int Cw) {
         this.buffer[buffer_idx] = color;
     }
 
-    void RenderToFile(string filename = "out.ppm") {
+    void RenderToFile(string filename = "out.ppm") const {
         // Dump the image to a PPM file.
         import std.format: format;
         auto header = cast(ubyte[]) format("P6\n%d %d\n255\n", Cw, Ch);
