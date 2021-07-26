@@ -13,6 +13,7 @@ struct Sphere {
     float radius;
     Color color;
     int specular;
+    float reflective;
 
     Vec3f normal(const ref Vec3f point) const @nogc pure {
     	immutable direction = point - center;
@@ -30,14 +31,14 @@ struct Scene {
     Light[] lights;
 }
 
-enum BACKGROUND_COLOR = Color(255, 255, 255); // White
+enum BACKGROUND_COLOR = Color(0, 0, 0); // Black
 
 static Scene scene = {
 	spheres: [
-		{[0, -1, 3], 1, {255, 0, 0}, 500}, // Red
-		{[ 2, 0, 4], 1, {0, 0, 255}, 500}, // Blue
-		{[-2, 0, 4], 1, {0, 255, 0}, 10}, // Green
-		{[0, -5001, 0], 5000, {255, 255, 0}, 5000}, // Yellow
+		{[0, -1, 3], 1, {255, 0, 0}, 500, 0.2}, // Red
+		{[ 2, 0, 4], 1, {0, 0, 255}, 500, 0.4}, // Blue
+		{[-2, 0, 4], 1, {0, 255, 0}, 10, 0.3}, // Green
+		{[0, -5001, 0], 5000, {255, 255, 0}, 5000, 0.5}, // Yellow
 	],
 	lights: [
 		Light(Ambient_Light(0.2)),
@@ -54,7 +55,7 @@ void main() {
 	for (int x = - (Cw / 2); x < (Cw / 2); x++) {
 		for (int y = - (Ch / 2); y < (Ch / 2); y++) {
 			immutable D = CanvasToViewport(x, y);
-			immutable color = TraceRay(O, D, d, float.max);
+			immutable color = TraceRay(O, D, d, float.max, 3);
 			canvas.PutPixel(x, y, color);
 		}
 	}
@@ -74,7 +75,7 @@ Vec3f CanvasToViewport(int x, int y) {
 	]);
 }
 
-Color TraceRay(const ref Vec3f O, const ref Vec3f D, const float t_min, const float t_max) {
+Color TraceRay(const ref Vec3f O, const ref Vec3f D, const float t_min, const float t_max, int recursion_depth) {
 	const closest = ComputeIntersection(O, D, t_min, t_max);
 	const closest_sphere = closest[0];
 	immutable closest_t = closest[1];
@@ -87,7 +88,18 @@ Color TraceRay(const ref Vec3f O, const ref Vec3f D, const float t_min, const fl
 	// Compute sphere normal at intersection
 	immutable N = (P - closest_sphere.center).normalized();
 
-	return closest_sphere.color * ComputeLighting(P, N, D * -1, closest_sphere.specular);
+	auto local_color = closest_sphere.color * ComputeLighting(P, N, D * -1, closest_sphere.specular);
+
+	// Reflections
+	float r = closest_sphere.reflective;
+	if (recursion_depth <= 0 || r <= 0.0) return local_color;
+
+	// Reflected color
+	auto negD = D * -1;
+	auto reflected_ray = ReflectRay(negD, N);
+	auto reflected_color = TraceRay(P, reflected_ray, 0.05, float.max, recursion_depth - 1);
+
+	return (local_color * (1 - r)) + (reflected_color * r);
 }
 
 Tuple!(Sphere*, float) ComputeIntersection(const ref Vec3f O, const ref Vec3f D, const float t_min, const float t_max) @nogc {
@@ -201,7 +213,7 @@ struct Light {
 
 		// Specular lighting
 		if (specular_exponent != -1) {
-			immutable R = ((normal * 2) * n_dot_l) - L;
+			immutable R = ReflectRay(L, normal);
 			immutable r_dot_v = R * viewing_direction;
 
 			if (r_dot_v > 0) {
@@ -211,6 +223,12 @@ struct Light {
 
 		return i;
 	}
+}
+
+Vec3f ReflectRay(const ref Vec3f R, const ref Vec3f normal) @nogc {
+	immutable n_dot_r = normal * R;
+	immutable normal2 = normal * 2;
+	return (normal2 * n_dot_r) - R;
 }
 
 struct Ambient_Light {
