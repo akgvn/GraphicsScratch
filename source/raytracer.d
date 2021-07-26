@@ -45,22 +45,20 @@ struct Scene {
 
 enum BACKGROUND_COLOR = Color(0, 0, 0); // Black
 
-static Scene scene = {
-    spheres: [
-        {[0, -1, 3], 1, {255, 0, 0}, 500, 0.2}, // Red
-        {[ 2, 0, 4], 1, {0, 0, 255}, 500, 0.4}, // Blue
-        {[-2, 0, 4], 1, {0, 255, 0}, 10, 0.3}, // Green
-        {[0, -5001, 0], 5000, {255, 255, 0}, 5000, 0.5}, // Yellow
-    ],
-    lights: [
-        Light(Ambient_Light(0.2)),
-        Light(Point_Light(0.6, Vec3f([2, 1, 0]))),
-        Light(Directional_Light(0.2, Vec3f([1, 4, 4]))),
-    ]
-};
-
 void raytrace() {
-    immutable O = Vec3f([0, 0, 0]);
+    Scene scene = {
+        spheres: [
+            {[0, -1, 3], 1, {255, 0, 0}, 500, 0.2}, // Red
+            {[ 2, 0, 4], 1, {0, 0, 255}, 500, 0.4}, // Blue
+            {[-2, 0, 4], 1, {0, 255, 0}, 10, 0.3}, // Green
+            {[0, -5001, 0], 5000, {255, 255, 0}, 5000, 0.5}, // Yellow
+        ],
+        lights: [
+            Light(0.2),
+            Light(Light.Light_Type.Point, 0.6, Vec3f([2, 1, 0])),
+            Light(Light.Light_Type.Directional, 0.2, Vec3f([1, 4, 4])),
+        ]
+    };
 
     Camera cam;
     cam.position = Vec3f([3, 0, 1]);
@@ -78,7 +76,7 @@ void raytrace() {
             ray.origin = cam.position;
             ray.direction = CanvasToViewport(x, y) * cam.rotation;
 
-            immutable color = TraceRay(ray, d, float.max, 3);
+            immutable color = ray.Trace(d, float.max, scene);
             canvas.PutPixel(x, y, color);
         }
     }
@@ -102,47 +100,71 @@ struct Ray {
     Vec3f origin;
     Vec3f direction;
 
+    Color Trace(const float t_min, const float t_max, const ref Scene scene, int recursion_depth = 3) const @nogc {
+        const closest = ComputeIntersection(this, t_min, t_max, scene.spheres);
+        const closest_sphere = closest[0];
+        immutable closest_t = closest[1];
+
+        if (closest_sphere == null) return BACKGROUND_COLOR;
+
+        Ray surface_normal;
+
+        // Compute intersection
+        surface_normal.origin = this.origin + (this.direction * closest_t);
+
+        // Compute sphere normal at intersection
+        surface_normal.direction = (surface_normal.origin - closest_sphere.center).normalized();
+
+        auto local_color = closest_sphere.color * ComputeLighting(surface_normal, this.direction * -1, closest_sphere.specular, scene);
+
+        // Reflections
+        float r = closest_sphere.reflective;
+        if (recursion_depth <= 0 || r <= 0.0) return local_color;
+
+        // Reflected color
+        auto negD = this.direction * -1;
+
+        Ray reflection_ray;
+        reflection_ray.origin = surface_normal.origin;
+        reflection_ray.direction = Ray.Reflect(negD, surface_normal.direction);
+
+        auto reflected_color = reflection_ray.Trace(0.05, float.max, scene, recursion_depth - 1);
+
+        return (local_color * (1 - r)) + (reflected_color * r);
+    }
+
+    Tuple!(float, float) IntersectSphere(const ref Sphere sphere) const @nogc {
+        immutable r = sphere.radius;
+        immutable CO = this.origin - sphere.center;
+
+        immutable a = this.direction * this.direction;
+        immutable b = CO * this.direction * 2;
+        immutable c = CO * CO - r * r;
+
+        immutable discriminant = b*b - 4*a*c;
+        if (discriminant < 0) { return tuple(float.max, float.max); }
+
+        auto t1 = (-b + sqrt(discriminant)) / (2*a);
+        auto t2 = (-b - sqrt(discriminant)) / (2*a);
+
+        return tuple(t1, t2);
+    }
+
+    static Vec3f Reflect(const ref Vec3f direction_to_reflect, const ref Vec3f normal) @nogc {
+        immutable n_dot_r = normal * direction_to_reflect;
+        immutable normal2 = normal * 2;
+        return (normal2 * n_dot_r) - direction_to_reflect;
+    }
+
 }
 
-Color TraceRay(const ref Ray ray, const float t_min, const float t_max, int recursion_depth = 3) {
-    const closest = ComputeIntersection(ray, t_min, t_max);
-    const closest_sphere = closest[0];
-    immutable closest_t = closest[1];
 
-    if (closest_sphere == null) return BACKGROUND_COLOR;
-
-    Ray surface_normal;
-
-    // Compute intersection
-    surface_normal.origin = ray.origin + (ray.direction * closest_t);
-
-    // Compute sphere normal at intersection
-    surface_normal.direction = (surface_normal.origin - closest_sphere.center).normalized();
-
-    auto local_color = closest_sphere.color * ComputeLighting(surface_normal, ray.direction * -1, closest_sphere.specular);
-
-    // Reflections
-    float r = closest_sphere.reflective;
-    if (recursion_depth <= 0 || r <= 0.0) return local_color;
-
-    // Reflected color
-    auto negD = ray.direction * -1;
-
-    Ray reflection_ray;
-    reflection_ray.origin = surface_normal.origin;
-    reflection_ray.direction = ReflectRay(negD, surface_normal.direction);
-
-    auto reflected_color = TraceRay(reflection_ray, 0.05, float.max, recursion_depth - 1);
-
-    return (local_color * (1 - r)) + (reflected_color * r);
-}
-
-Tuple!(Sphere*, float) ComputeIntersection(const ref Ray ray, const float t_min, const float t_max) @nogc {
+Tuple!(const(Sphere)*, float) ComputeIntersection(const ref Ray ray, const float t_min, const float t_max, const Sphere[] spheres) @nogc {
     auto closest_t = float.max;
-    Sphere* closest_sphere = null;
+    const(Sphere)* closest_sphere = null;
 
-    foreach (ref sphere; scene.spheres) {
-        Tuple!(float, float) ts = IntersectRaySphere(ray, sphere);
+    foreach (ref sphere; spheres) {
+        Tuple!(float, float) ts = ray.IntersectSphere(sphere);
 
         auto t1 = ts[0], t2 = ts[1];
 
@@ -159,82 +181,60 @@ Tuple!(Sphere*, float) ComputeIntersection(const ref Ray ray, const float t_min,
     return tuple(closest_sphere, closest_t);
 }
 
-Tuple!(float, float) IntersectRaySphere(const ref Ray ray, const ref Sphere sphere) @nogc {
-    immutable r = sphere.radius;
-    immutable CO = ray.origin - sphere.center;
-
-    immutable a = ray.direction * ray.direction;
-    immutable b = CO * ray.direction * 2;
-    immutable c = CO * CO - r * r;
-
-    immutable discriminant = b*b - 4*a*c;
-    if (discriminant < 0) { return tuple(float.max, float.max); }
-
-    auto t1 = (-b + sqrt(discriminant)) / (2*a);
-    auto t2 = (-b - sqrt(discriminant)) / (2*a);
-
-    return tuple(t1, t2);
-}
-
-float ComputeLighting(const ref Ray surface_normal, const Vec3f viewing_direction, const int specular_exponent) {
+float ComputeLighting(const ref Ray point_on_surface, const Vec3f viewing_direction, const int specular_exponent, const ref Scene scene) @nogc {
     float i = 0.0;
 
-    foreach (ref light; scene.lights) { i += light.ComputeIntensity(surface_normal, viewing_direction, specular_exponent); }
+    foreach (ref light; scene.lights) { i += light.ComputeIntensity(point_on_surface, viewing_direction, specular_exponent, scene.spheres); }
 
     return i;
 }
 
 struct Light {
-    private enum Light_Type: ubyte { Ambient, Point, Directional }
+    private enum Light_Type { Ambient, Point, Directional }
 
-    this(Ambient_Light light)     @nogc pure { al = light; type = Light_Type.Ambient; }
-    this(Point_Light light)       @nogc pure { pl = light; type = Light_Type.Point; }
-    this(Directional_Light light) @nogc pure { dl = light; type = Light_Type.Directional; }
-
-    Light_Type type;
-
-    // TODO maybe use `sumtype!` instead of dealing with this?
-    // I'm curious which approach is faster.
-    union {
-        Ambient_Light al;
-        Point_Light pl;
-        Directional_Light dl;
+    this(float intensity) @nogc pure { this.intensity = intensity; type = Light_Type.Ambient; }
+    this(Light_Type type, float intensity, Vec3f pos_or_dir) @nogc pure {
+        this.type = type;
+        this.intensity = intensity;
+        this.position_or_direction = pos_or_dir;
     }
 
-    float ComputeIntensity(const ref Ray surface_normal, const ref Vec3f viewing_direction, const int specular_exponent) const @nogc {
+    Light_Type type;
+    float intensity;
+    Vec3f position_or_direction;
+
+    float ComputeIntensity(const ref Ray point_on_surface, const ref Vec3f viewing_direction, const int specular_exponent, const ref Sphere[] spheres) const @nogc {
         Vec3f light_direction;
-        float intensity, t_max;
+        float t_max;
 
         final switch (type) {
             case Light_Type.Ambient:
-                return al.intensity;
+                return intensity;
             case Light_Type.Point:
-                light_direction = pl.position - surface_normal.origin;
-                intensity = pl.intensity;
+                light_direction = position_or_direction - point_on_surface.origin;
                 t_max = 1;
                 break;
             case Light_Type.Directional:
-                light_direction = dl.direction;
-                intensity = dl.intensity;
+                light_direction = position_or_direction;
                 t_max = float.max;
                 break;
         }
 
-        auto surface_towards_light = Ray(surface_normal.origin, light_direction);
+        auto surface_towards_light = Ray(point_on_surface.origin, light_direction);
 
         // Shadow check
-        const shadow_data = ComputeIntersection(surface_towards_light, 0.001, t_max);
+        const shadow_data = ComputeIntersection(surface_towards_light, 0.001, t_max, spheres);
         if (shadow_data[0] != null) { return 0; }
 
         // Diffuse lighting
-        immutable n_dot_l = surface_normal.direction * light_direction;
+        immutable n_dot_l = point_on_surface.direction * light_direction;
 
         auto i = 0.0;
-        if (n_dot_l > 0) { i = (intensity * n_dot_l) / (surface_normal.direction.norm() * light_direction.norm()); }
+        if (n_dot_l > 0) { i = (intensity * n_dot_l) / (point_on_surface.direction.norm() * light_direction.norm()); }
 
         // Specular lighting
         if (specular_exponent != -1) {
-            immutable R = ReflectRay(light_direction, surface_normal.direction);
+            immutable R = Ray.Reflect(light_direction, point_on_surface.direction);
             immutable r_dot_v = R * viewing_direction;
 
             if (r_dot_v > 0) {
@@ -244,24 +244,4 @@ struct Light {
 
         return i;
     }
-}
-
-Vec3f ReflectRay(const ref Vec3f ray_direction, const ref Vec3f normal) @nogc {
-    immutable n_dot_r = normal * ray_direction;
-    immutable normal2 = normal * 2;
-    return (normal2 * n_dot_r) - ray_direction;
-}
-
-struct Ambient_Light {
-    float intensity;
-}
-
-struct Point_Light {
-    float intensity;
-    Vec3f position;
-}
-
-struct Directional_Light {
-    float intensity;
-    Vec3f direction;
 }
