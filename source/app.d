@@ -75,6 +75,22 @@ Vec3f CanvasToViewport(int x, int y) {
 }
 
 Color TraceRay(const ref Vec3f O, const ref Vec3f D, const float t_min, const float t_max) {
+	const closest = ComputeIntersection(O, D, t_min, t_max);
+	const closest_sphere = closest[0];
+	immutable closest_t = closest[1];
+
+	if (closest_sphere == null) return BACKGROUND_COLOR;
+
+	// Compute intersection
+	immutable P = O + (D * closest_t);
+
+	// Compute sphere normal at intersection
+	immutable N = (P - closest_sphere.center).normalized();
+
+	return closest_sphere.color * ComputeLighting(P, N, D * -1, closest_sphere.specular);
+}
+
+Tuple!(Sphere*, float) ComputeIntersection(const ref Vec3f O, const ref Vec3f D, const float t_min, const float t_max) @nogc {
 	auto closest_t = float.max;
 	Sphere* closest_sphere = null;
 
@@ -92,20 +108,12 @@ Color TraceRay(const ref Vec3f O, const ref Vec3f D, const float t_min, const fl
 		}
 	}
 
-	if (closest_sphere == null) return BACKGROUND_COLOR;
-
-	// Compute intersection
-	immutable P = O + (D * closest_t);
-
-	// Compute sphere normal at intersection
-	immutable N = (P - closest_sphere.center).normalized();
-
-	return closest_sphere.color * ComputeLighting(P, N, D * -1, closest_sphere.specular);
+	return tuple(closest_sphere, closest_t);
 }
 
 import std.math : sqrt, pow;
 import std.typecons : tuple, Tuple;
-Tuple!(float, float) IntersectRaySphere(const ref Vec3f O, const ref Vec3f D, const ref Sphere sphere) {
+Tuple!(float, float) IntersectRaySphere(const ref Vec3f O, const ref Vec3f D, const ref Sphere sphere) @nogc {
 	immutable r = sphere.radius;
 	immutable CO = O - sphere.center;
 
@@ -162,9 +170,9 @@ struct Light {
 		Directional_Light dl;
 	}
 
-	float ComputeIntensity(const ref Vec3f point, const ref Vec3f normal, const ref Vec3f viewing_direction, const int specular_exponent) const @nogc pure {
+	float ComputeIntensity(const ref Vec3f point, const ref Vec3f normal, const ref Vec3f viewing_direction, const int specular_exponent) const @nogc {
 		Vec3f L;
-		float intensity;
+		float intensity, t_max;
 
 		final switch (type) {
 			case Light_Type.Ambient:
@@ -172,12 +180,18 @@ struct Light {
 			case Light_Type.Point:
 				L = pl.position - point;
 				intensity = pl.intensity;
+				t_max = 1;
 				break;
 			case Light_Type.Directional:
 				L = dl.direction;
 				intensity = dl.intensity;
+				t_max = float.max;
 				break;
 		}
+
+		// Shadow check
+		const shadow_data = ComputeIntersection(point, L, 0.001, t_max);
+		if (shadow_data[0] != null) { return 0; }
 
 		// Diffuse lighting
 		immutable n_dot_l = normal * L;
