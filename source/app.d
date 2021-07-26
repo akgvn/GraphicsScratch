@@ -9,26 +9,51 @@ enum Cw = 600; // Canvas width
 enum Ch = 600; // Canvas height
 
 struct Sphere {
-    Vec3f center;
-    float radius;
-    Color color;
-    int specular;
-    float reflective;
+	Vec3f center;
+	float radius;
+	Color color;
+	int specular;
+	float reflective;
 
-    Vec3f normal(const ref Vec3f point) const @nogc pure {
-    	immutable direction = point - center;
-    	immutable magnitude = direction.norm();
+	Vec3f normal(const ref Vec3f point) const @nogc pure {
+		immutable direction = point - center;
+		immutable magnitude = direction.norm();
 
-    	return direction / magnitude;
-    }
+		return direction / magnitude;
+	}
+}
+
+struct Camera {
+	Vec3f position = Vec3f([0, 0, 0]);
+	Mat3 rotation = {[
+		[1, 0, 0],
+		[0, 1, 0],
+		[0, 0, 1],
+	]};
+}
+
+struct Mat3 {
+	float[3][3] data;
+
+	Vec3f mult(Vec3f vec) {
+		Vec3f result = Vec3f([0, 0, 0]);
+
+		for (auto row = 0; row < 3; row++) {
+			for (auto col = 0; col < 3; col++) {
+				result.data[row] += vec.data[col]* data[row][col];
+			}
+		}
+
+		return result;
+	}
 }
 
 struct Scene {
-    float viewport_distance = d;
-    float viewport_width  = Vw;
-    float viewport_height = Vh;
-    Sphere[] spheres;
-    Light[] lights;
+	float viewport_distance = d;
+	float viewport_width  = Vw;
+	float viewport_height = Vh;
+	Sphere[] spheres;
+	Light[] lights;
 }
 
 enum BACKGROUND_COLOR = Color(0, 0, 0); // Black
@@ -50,12 +75,20 @@ static Scene scene = {
 void main() {
 	immutable O = Vec3f([0, 0, 0]);
 
+	Camera cam;
+	cam.position = Vec3f([3, 0, 1]);
+	cam.rotation = Mat3([
+		[0.7071, 0, -0.7071],
+		[   0.0, 1,     0.0],
+		[0.7071, 0,  0.7071]
+	]);
+
 	Canvas!(Ch, Cw) canvas;
 
 	for (int x = - (Cw / 2); x < (Cw / 2); x++) {
 		for (int y = - (Ch / 2); y < (Ch / 2); y++) {
-			immutable D = CanvasToViewport(x, y);
-			immutable color = TraceRay(O, D, d, float.max, 3);
+			immutable D = cam.rotation.mult(CanvasToViewport(x, y));
+			immutable color = TraceRay(cam.position, D, d, float.max, 3);
 			canvas.PutPixel(x, y, color);
 		}
 	}
@@ -134,7 +167,7 @@ Tuple!(float, float) IntersectRaySphere(const ref Vec3f O, const ref Vec3f D, co
 	immutable c = CO * CO - r * r;
 
 	immutable discriminant = b*b - 4*a*c;
-    if (discriminant < 0) { return tuple(float.max, float.max); }
+	if (discriminant < 0) { return tuple(float.max, float.max); }
 
 	auto t1 = (-b + sqrt(discriminant)) / (2*a);
 	auto t2 = (-b - sqrt(discriminant)) / (2*a);
