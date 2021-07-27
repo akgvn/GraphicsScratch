@@ -3,7 +3,9 @@ import std.conv: to;
 import std.math: sqrt;
 
 alias Vec3f = Vector!(3, float);
-alias Point = Vector!(2, float);
+alias Point = Vector!(2, int);
+
+struct Mat3 { float[3][3] data; } // TODO(ag): Make this a generic struct
 
 struct Vector(int n, T = float) if (isNumeric!T) {
     T[n] data = 0;
@@ -56,7 +58,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
         Self new_vec;
 
         for (int i = 0; i < n; i++) {
-            new_vec.data[i] = lhs.data[i] * rhs;
+            new_vec.data[i] = cast(T)(lhs.data[i] * rhs);
         }
 
         return new_vec;
@@ -65,12 +67,12 @@ struct Vector(int n, T = float) if (isNumeric!T) {
     auto norm() const pure nothrow {
         T sum = 0;
         foreach (member; data) { sum += member * member; }
-        return sqrt(sum);
+        return sqrt(cast(real) sum);
     }
 
     void normalize() {
         float norm = norm();
-        foreach (ref member; data) { member /= norm; }
+        foreach (ref member; data) { member = cast(T)(cast(float) member / norm); } // The casting is for when T == int, might be buggy.
     }
 
     // TODO maybe inline all the static functions above?
@@ -115,5 +117,3 @@ struct Vector(int n, T = float) if (isNumeric!T) {
 
     string toString() { return Self.stringof ~ to!(string)(this.data); }
 }
-
-struct Mat3 { float[3][3] data; } // TODO(ag): Make this a generic struct

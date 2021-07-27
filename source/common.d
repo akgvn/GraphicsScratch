@@ -39,6 +39,21 @@ struct Canvas {
         buffer = new Color[canvas_width * canvas_height];
     }
 
+    void RenderToFile(string filename = "out.ppm") const {
+        // Dump the image to a PPM file.
+        import std.format: format;
+        auto header = cast(ubyte[]) format("P6\n%d %d\n255\n", canvas_width, canvas_height);
+
+        // TODO Handle possible exceptions.
+        import std.stdio: File;
+        auto fp = File(filename, "wb");
+        auto writer = fp.lockingBinaryWriter();
+
+        import std.algorithm.mutation: copy;
+        header.copy(writer);
+        buffer.copy(writer);
+    }
+
     void PutPixel(int screen_x, int screen_y, Color color) @nogc {
         // Canvas has it's origin point in the middle, but the
         // buffer has it's origin on the top left. Conversion:
@@ -75,26 +90,17 @@ struct Canvas {
         }
     }
 
-    void RenderToFile(string filename = "out.ppm") const {
-        // Dump the image to a PPM file.
-        import std.format: format;
-        auto header = cast(ubyte[]) format("P6\n%d %d\n255\n", canvas_width, canvas_height);
-
-        // TODO Handle possible exceptions.
-        import std.stdio: File;
-        auto fp = File(filename, "wb");
-        auto writer = fp.lockingBinaryWriter();
-
-        import std.algorithm.mutation: copy;
-        header.copy(writer);
-        buffer.copy(writer);
+    void DrawWireframeTriangle (Point p0, Point p1, Point p2, Color color) {
+        DrawLine(p0, p1, color);
+        DrawLine(p1, p2, color);
+        DrawLine(p2, p0, color);
     }
 }
 
-int[] Interpolate(float independent_0, float dependent_0, float independent_1, float dependent_1) {
+int[] Interpolate(int independent_0, int dependent_0, int independent_1, int dependent_1) {
     int[] values = [];
-    auto slope = (dependent_1 - dependent_0) / (independent_1 - independent_0);
-    auto dependent = dependent_0;
+    auto slope = cast(float) (dependent_1 - dependent_0) / cast(float) (independent_1 - independent_0);
+    auto dependent = cast(float) dependent_0;
 
     for (auto i = independent_0; i <= independent_1; i++) {
         values ~= cast(int) dependent;
