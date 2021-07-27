@@ -12,7 +12,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
 
     alias Self = Vector!(n, T);
 
-    this(T[n] initial_values) @nogc {
+    this(T[n] initial_values...) @nogc {
         data = initial_values;
     }
 

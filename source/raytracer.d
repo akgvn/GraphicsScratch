@@ -20,7 +20,7 @@ struct Sphere {
 }
 
 struct Camera {
-    Vec3f position = Vec3f([0, 0, 0]);
+    Vec3f position = Vec3f(0, 0, 0);
     Mat3 rotation = {[
         [1, 0, 0],
         [0, 1, 0],
@@ -40,11 +40,11 @@ struct Scene {
     Vec3f CanvasToViewport(int x, int y) const {
         // Casting to float because otherwise
         // numbers are rounded to ints.
-        return Vec3f([
+        return Vec3f(
             (x * viewport_width) / canvas_width,
             (y * viewport_height) / canvas_height,
             viewport_distance
-        ]);
+        );
     }
 }
 
@@ -63,13 +63,13 @@ void raytrace() {
         ],
         lights: [
             Light(0.2),
-            Light(Light.Light_Type.Point, 0.6, Vec3f([2, 1, 0])),
-            Light(Light.Light_Type.Directional, 0.2, Vec3f([1, 4, 4])),
+            Light(Light.Light_Type.Point, 0.6, Vec3f(2, 1, 0)),
+            Light(Light.Light_Type.Directional, 0.2, Vec3f(1, 4, 4)),
         ]
     };
 
     Camera cam;
-    cam.position = Vec3f([3, 0, 1]);
+    cam.position = Vec3f(3, 0, 1);
     cam.rotation = Mat3([
         [0.7071, 0, -0.7071],
         [   0.0, 1,     0.0],
