@@ -1,4 +1,5 @@
 import vec;
+import std.math: abs;
 
 import std.traits: isNumeric;
 private ubyte clamp(T)(T math_expression_result) if (isNumeric!T) {
@@ -48,20 +49,29 @@ struct Canvas {
         this.buffer[buffer_idx] = color;
     }
 
-    void DrawLine(Point p0, Point p1, Color color) @nogc {
-        if (p0.x > p1.x) {
-            // Swap
-            auto temp = p0;
-            p0 = p1;
-            p1 = temp;
-        }
+    void DrawLine(Point p0, Point p1, Color color) {
+        if (abs(p1.x - p0.x) > abs(p1.y - p0.y)) {
+            // Horizontal-ish line.
 
-        auto slope = (p1.y - p0.y) / (p1.x - p0.x);
-        auto y = p0.y;
+            if (p0.x > p1.x) { swap(p0, p1); }
 
-        for (int x = cast(int) p0.x; x <= p1.x; x++) {
-            PutPixel(x, cast(int) y, color);
-            y += slope;
+            auto ys = Interpolate(p0.x, p0.y, p1.x, p1.y);
+
+            auto initial_x = cast(int) p0.x;
+            for (int x = initial_x; x <= p1.x; x++) {
+                PutPixel(x, ys[x - initial_x], color);
+            }
+        } else {
+            // Vertical-ish line.
+
+            if (p0.y > p1.y) { swap(p0, p1); }
+
+            auto xs = Interpolate(p0.y, p0.x, p1.y, p1.x);
+
+            auto initial_y = cast(int) p0.y;
+            for (int y = initial_y; y <= p1.y; y++) {
+                PutPixel(xs[y - initial_y], y, color);
+            }
         }
     }
 
@@ -79,4 +89,23 @@ struct Canvas {
         header.copy(writer);
         buffer.copy(writer);
     }
+}
+
+int[] Interpolate(float independent_0, float dependent_0, float independent_1, float dependent_1) {
+    int[] values = [];
+    auto slope = (dependent_1 - dependent_0) / (independent_1 - independent_0);
+    auto dependent = dependent_0;
+
+    for (auto i = independent_0; i <= independent_1; i++) {
+        values ~= cast(int) dependent;
+        dependent += slope;
+    }
+
+    return values;
+}
+
+void swap(T)(ref T lhs, ref T rhs) {
+    auto temp = lhs;
+    lhs = rhs;
+    rhs = temp;
 }
