@@ -3,6 +3,7 @@ import std.conv: to;
 import std.math: sqrt;
 
 alias Vec3f = Vector!(3, float);
+alias Point = Vector!(2, float);
 
 struct Vector(int n, T = float) if (isNumeric!T) {
     T[n] data = 0;

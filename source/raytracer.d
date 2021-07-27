@@ -76,13 +76,14 @@ void raytrace() {
         [0.7071, 0,  0.7071]
     ]);
 
-    auto Ch = scene.canvas_height;
-    auto Cw = scene.canvas_width;
-    Canvas!(Ch, Cw) canvas;
+    auto canvas = Canvas(scene.canvas_width, scene.canvas_height);
+
+    immutable half_width  = (scene.canvas_width / 2);
+    immutable half_height = (scene.canvas_height / 2);
 
     Ray ray;
-    for (int x = - (Cw / 2); x < (Cw / 2); x++) {
-        for (int y = - (Ch / 2); y < (Ch / 2); y++) {
+    for (int x = - half_width; x < half_width; x++) {
+        for (int y = - half_height; y < half_height; y++) {
             ray.origin = cam.position;
             ray.direction = scene.CanvasToViewport(x, y) * cam.rotation;
 
@@ -91,7 +92,7 @@ void raytrace() {
         }
     }
 
-    RenderToFile(canvas.buffer, Cw, Ch);
+    canvas.RenderToFile();
 
     writeln("Done.");
 }
@@ -244,21 +245,5 @@ struct Light {
         }
 
         return i;
-    }
-}
-
-
-struct Canvas(int Ch, int Cw) {
-    // Color[Ch * Cw] buffer; // TODO Program breaks when this is used. (Segmentation fault)
-    Color[] buffer = new Color[Ch * Cw];
-
-    void PutPixel(int screen_x, int screen_y, Color color) @nogc {
-        // Canvas has it's origin point in the middle, but the
-        // buffer has it's origin on the top left. Conversion:
-        int buffer_x = screen_x + (Cw / 2);
-        int buffer_y = (Ch / 2) - screen_y - 1;
-        int buffer_idx = buffer_x + buffer_y * Cw;
-
-        this.buffer[buffer_idx] = color;
     }
 }
