@@ -5,12 +5,6 @@ import std.math : sqrt, pow;
 import std.typecons : tuple, Tuple;
 
 
-enum d  = 1;   // Viewport distance
-enum Vw = 1;   // Viewport width
-enum Vh = 1;   // Viewport height
-enum Cw = 600; // Canvas width
-enum Ch = 600; // Canvas height
-
 struct Sphere {
     Vec3f center;
     float radius;
@@ -36,22 +30,37 @@ struct Camera {
 }
 
 struct Scene {
-    float viewport_distance = d;
-    float viewport_width  = Vw;
-    float viewport_height = Vh;
+    float viewport_distance = 1;
+    float viewport_width  = 1;
+    float viewport_height = 1;
+    int canvas_width  = 600;
+    int canvas_height = 600;
     Sphere[] spheres;
     Light[] lights;
+
+    Vec3f CanvasToViewport(int x, int y) const {
+        // Casting to float because otherwise
+        // numbers are rounded to ints.
+        return Vec3f([
+            (x * viewport_width) / canvas_width,
+            (y * viewport_height) / canvas_height,
+            viewport_distance
+        ]);
+    }
 }
 
-enum BACKGROUND_COLOR = Color(0, 0, 0); // Black
+enum BACKGROUND_COLOR = Color.WHITE;
 
 void raytrace() {
-    Scene scene = {
+    // This is `static immutable` bc Canvas takes some
+    // compile-time parameters. Might need to change those to
+    // constructor arguments.
+    static immutable Scene scene = {
         spheres: [
-            {[0, -1, 3], 1, {255, 0, 0}, 500, 0.2}, // Red
-            {[ 2, 0, 4], 1, {0, 0, 255}, 500, 0.4}, // Blue
-            {[-2, 0, 4], 1, {0, 255, 0}, 10, 0.3}, // Green
-            {[0, -5001, 0], 5000, {255, 255, 0}, 5000, 0.5}, // Yellow
+            {[ 0,    -1, 3],    1,    Color.RED,  500, 0.2},
+            {[ 2,     0, 4],    1,   Color.BLUE,  500, 0.4},
+            {[-2,     0, 4],    1,  Color.GREEN,   10, 0.3},
+            {[ 0, -5001, 0], 5000, Color.YELLOW, 5000, 0.5},
         ],
         lights: [
             Light(0.2),
@@ -68,15 +77,17 @@ void raytrace() {
         [0.7071, 0,  0.7071]
     ]);
 
+    auto Ch = scene.canvas_height;
+    auto Cw = scene.canvas_width;
     Canvas!(Ch, Cw) canvas;
 
+    Ray ray;
     for (int x = - (Cw / 2); x < (Cw / 2); x++) {
         for (int y = - (Ch / 2); y < (Ch / 2); y++) {
-            Ray ray;
             ray.origin = cam.position;
-            ray.direction = CanvasToViewport(x, y) * cam.rotation;
+            ray.direction = scene.CanvasToViewport(x, y) * cam.rotation;
 
-            immutable color = ray.Trace(d, float.max, scene);
+            immutable color = ray.Trace(scene.viewport_distance, float.max, scene);
             canvas.PutPixel(x, y, color);
         }
     }
@@ -84,16 +95,6 @@ void raytrace() {
     canvas.RenderToFile();
 
     writeln("Done.");
-}
-
-Vec3f CanvasToViewport(int x, int y) {
-    // Casting to float because otherwise
-    // numbers are rounded to ints.
-    return Vec3f([
-        cast(float) (x * Vw) / Cw,
-        cast(float) (y * Vh) / Ch,
-        cast(float) d
-    ]);
 }
 
 struct Ray {
@@ -124,9 +125,10 @@ struct Ray {
         // Reflected color
         auto negD = this.direction * -1;
 
-        Ray reflection_ray;
-        reflection_ray.origin = surface_normal.origin;
-        reflection_ray.direction = Ray.Reflect(negD, surface_normal.direction);
+        Ray reflection_ray = {
+            origin : surface_normal.origin,
+            direction : Ray.Reflect(negD, surface_normal.direction),
+        };
 
         auto reflected_color = reflection_ray.Trace(0.05, float.max, scene, recursion_depth - 1);
 

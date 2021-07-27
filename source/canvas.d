@@ -12,6 +12,15 @@ private ubyte clamp(T)(T math_expression_result) if (isNumeric!T) {
 struct Color {
     ubyte r, g, b;
 
+    enum {
+        BLACK  = Color(  0,   0,   0),
+        WHITE  = Color(255, 255, 255),
+        RED    = Color(255,   0,   0),
+        GREEN  = Color(  0, 255,   0),
+        BLUE   = Color(  0,   0, 255),
+        YELLOW = Color(255, 255,   0),
+    }
+
     Color opBinary(string op, T)(T rhs) const pure nothrow if ((is(T == Color) && (op == "+" || op == "-")) || (isNumeric!T && (op == "*" || op == "/"))) {
         static if      (op == "+") { return Color(clamp(r + rhs.r), clamp(g + rhs.g), clamp(b + rhs.b)); }
         else static if (op == "-") { return Color(clamp(r - rhs.r), clamp(g - rhs.g), clamp(b - rhs.b)); }
