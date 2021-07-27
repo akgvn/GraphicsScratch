@@ -111,18 +111,36 @@ struct Canvas {
         auto x02 = Interpolate(p0.y, p0.x, p2.y, p2.x);
         auto x12 = Interpolate(p1.y, p1.x, p2.y, p2.x);
 
+
         // Concatenate the short sides
-        x12 = x01 ~ x12[1..$];
+        auto x012 = x01 ~ x12[1..$];
 
         // Determine which is left and which is right
-        auto m = cast(int) floor(cast(real) x12.length / 2.0);
+        auto m = cast(int) floor(cast(real) x012.length / 2.0);
 
         int[] x_left, x_right;
-        if (x02[m] < x12[m]) {
+
+        // Note to future self about "why is m never out of bounds?":
+        // I was confused about why we chose an arbitrary index and indexed
+        // into both array with that index. Surely the number of items in
+        // both arrays are not the same, right? One of them are going the
+        // long way up, and the other is a direct line up.
+        //
+        // Consider the following and it should be clear:
+        //
+        // the Interpolate(...) call above finds an x coordinate for each y.
+        // Since the y distance (and the number of pixels) are the same for
+        // both ways (p0 -> p2 or p0 -> p1 -> p2) and we have only
+        // one x value for each y value, length of the arrays must be equal!
+        // m is the middle of the array for both arrays, and if you imagine
+        // a horizontal line going through the triangle, the intersection points
+        // are x02[m] & x012[m].
+
+        if (x02[m] < x012[m]) {
             x_left  = x02;
-            x_right = x12;
+            x_right = x012;
         } else {
-            x_left  = x12;
+            x_left  = x012;
             x_right = x02;
         }
 
@@ -133,9 +151,9 @@ struct Canvas {
             }
         }
     }
-
 }
 
+/// Interpolates a unique coordinate for each point between dependent_0 and _1, using independent coordinates.
 int[] Interpolate(int independent_0, int dependent_0, int independent_1, int dependent_1) {
     int[] values = [];
     auto slope = cast(float) (dependent_1 - dependent_0) / cast(float) (independent_1 - independent_0);
