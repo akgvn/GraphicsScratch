@@ -1,5 +1,5 @@
 import vec;
-import std.math: abs;
+import std.math: abs, floor;
 
 import std.traits: isNumeric;
 private ubyte clamp(T)(T math_expression_result) if (isNumeric!T) {
@@ -64,6 +64,10 @@ struct Canvas {
         this.buffer[buffer_idx] = color;
     }
 
+    //
+    // Rasterizer-only functions
+    //
+
     void DrawLine(Point p0, Point p1, Color color) {
         if (abs(p1.x - p0.x) > abs(p1.y - p0.y)) {
             // Horizontal-ish line.
@@ -95,6 +99,41 @@ struct Canvas {
         DrawLine(p1, p2, color);
         DrawLine(p2, p0, color);
     }
+
+    void DrawFilledTriangle (Point p0, Point p1, Point p2, Color color) {
+        // Sort the points so that y0 <= y1 <= y2
+        if (p1.y < p0.y) { swap(p1, p0); }
+        if (p2.y < p0.y) { swap(p2, p0); }
+        if (p2.y < p1.y) { swap(p2, p1); }
+
+        // Compute the x coordinates of the triangle edges
+        auto x01 = Interpolate(p0.y, p0.x, p1.y, p1.x);
+        auto x02 = Interpolate(p0.y, p0.x, p2.y, p2.x);
+        auto x12 = Interpolate(p1.y, p1.x, p2.y, p2.x);
+
+        // Concatenate the short sides
+        x12 = x01 ~ x12[1..$];
+
+        // Determine which is left and which is right
+        auto m = cast(int) floor(cast(real) x12.length / 2.0);
+
+        int[] x_left, x_right;
+        if (x02[m] < x12[m]) {
+            x_left  = x02;
+            x_right = x12;
+        } else {
+            x_left  = x12;
+            x_right = x02;
+        }
+
+        // Draw the horizontal segments
+        for (int y = p0.y; y <= p2.y; y++) {
+            for (int x = x_left[y - p0.y]; x < x_right[y - p0.y]; x++) {
+                PutPixel(x, y, color);
+            }
+        }
+    }
+
 }
 
 int[] Interpolate(int independent_0, int dependent_0, int independent_1, int dependent_1) {
@@ -110,7 +149,7 @@ int[] Interpolate(int independent_0, int dependent_0, int independent_1, int dep
     return values;
 }
 
-void swap(T)(ref T lhs, ref T rhs) {
+void swap(T)(ref T lhs, ref T rhs) nothrow {
     auto temp = lhs;
     lhs = rhs;
     rhs = temp;
