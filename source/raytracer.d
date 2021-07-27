@@ -1,8 +1,8 @@
 import vec;
+import common;
 import std.stdio;
 import std.math : sqrt, pow;
 import std.typecons : tuple, Tuple;
-
 
 struct Sphere {
     Vec3f center;
@@ -91,7 +91,7 @@ void raytrace() {
         }
     }
 
-    canvas.RenderToFile();
+    RenderToFile(canvas.buffer, Cw, Ch);
 
     writeln("Done.");
 }
@@ -247,39 +247,10 @@ struct Light {
     }
 }
 
-import std.traits: isNumeric;
-private ubyte clamp(T)(T math_expression_result) if (isNumeric!T) {
-    if (math_expression_result > 255) return 255;
-    else if (math_expression_result < 0) return 0;
-    else return cast(ubyte) math_expression_result;
-}
-
-struct Color {
-    ubyte r, g, b;
-
-    enum {
-        BLACK  = Color(  0,   0,   0),
-        WHITE  = Color(255, 255, 255),
-        RED    = Color(255,   0,   0),
-        GREEN  = Color(  0, 255,   0),
-        BLUE   = Color(  0,   0, 255),
-        YELLOW = Color(255, 255,   0),
-    }
-
-    Color opBinary(string op, T)(T rhs) const pure nothrow if ((is(T == Color) && (op == "+" || op == "-")) || (isNumeric!T && (op == "*" || op == "/"))) {
-        static if      (op == "+") { return Color(clamp(r + rhs.r), clamp(g + rhs.g), clamp(b + rhs.b)); }
-        else static if (op == "-") { return Color(clamp(r - rhs.r), clamp(g - rhs.g), clamp(b - rhs.b)); }
-        else static if (op == "*") { return Color(clamp(r * rhs), clamp(g * rhs), clamp(b * rhs)); }
-        else static if (op == "/") { return Color(clamp(r / rhs), clamp(g / rhs), clamp(b / rhs)); }
-        else static assert(0, "Operator " ~ op ~ " not implemented.");
-    }
-}
 
 struct Canvas(int Ch, int Cw) {
     // Color[Ch * Cw] buffer; // TODO Program breaks when this is used. (Segmentation fault)
     Color[] buffer = new Color[Ch * Cw];
-
-    // The "camera" is at O = (0, 0, 0), looking towards positive Z axis.
 
     void PutPixel(int screen_x, int screen_y, Color color) @nogc {
         // Canvas has it's origin point in the middle, but the
@@ -289,20 +260,5 @@ struct Canvas(int Ch, int Cw) {
         int buffer_idx = buffer_x + buffer_y * Cw;
 
         this.buffer[buffer_idx] = color;
-    }
-
-    void RenderToFile(string filename = "out.ppm") const {
-        // Dump the image to a PPM file.
-        import std.format: format;
-        auto header = cast(ubyte[]) format("P6\n%d %d\n255\n", Cw, Ch);
-
-        // TODO Handle possible exceptions.
-        import std.stdio: File;
-        auto fp = File(filename, "wb");
-        auto writer = fp.lockingBinaryWriter();
-
-        import std.algorithm.mutation: copy;
-        header.copy(writer);
-        buffer.copy(writer);
     }
 }
