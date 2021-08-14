@@ -205,36 +205,21 @@ struct Canvas {
     }
 }
 
-// TODO(ag): I don't like that we have two different Interolation functions. Maybe make them templated?
+enum isFloatOrInteger(T) = (is(T == int) || is(T == float));
 
 /// Interpolates a unique coordinate for each point between dependent_0 and _1, using independent coordinates.
-int[] Interpolate(int independent_0, int dependent_0, int independent_1, int dependent_1) {
+T[] Interpolate(T)(int independent_0, T dependent_0, int independent_1, T dependent_1) if (isFloatOrInteger!T) {
     auto slope = cast(float) (dependent_1 - dependent_0) / cast(float) (independent_1 - independent_0);
     auto dependent = cast(float) dependent_0;
     const count = (independent_1 - independent_0) + 1;
 
-    int[] values = new int[count];
+    auto values = new T[count];
     foreach (i; 0 .. count) {
-        values[i] = cast(int) dependent;
+        values[i] = cast(T) dependent;
         dependent += slope;
     }
 
     return values;
-}
-
-/// Interpolates a unique coordinate for each point between (float) dependent_0 and _1, using (int) independent coordinates.
-float[] Interpolate(int independent_0, float dependent_0, int independent_1, float dependent_1) {
-    auto slope = (dependent_1 - dependent_0) / cast(float) (independent_1 - independent_0);
-    auto dependent = dependent_0;
-    const count = (independent_1 - independent_0) + 1;
-   
-    float[] values = new float[count];
-    foreach (i; 0 .. count) {
-        values[i] = dependent;
-        dependent += slope;
-    }
-
-    return values;  
 }
 
 private void swap(T)(ref T lhs, ref T rhs) nothrow @nogc {
