@@ -64,18 +64,18 @@ struct Vector(int n, T = float) if (isNumeric!T) {
         return new_vec;
     }
 
-    auto norm() const pure nothrow {
+    auto norm() const pure nothrow @nogc {
         T sum = 0;
         foreach (member; data) { sum += member * member; }
         return sqrt(cast(real) sum);
     }
 
-    void normalize() {
+    void normalize() nothrow @nogc {
         float norm = norm();
         foreach (ref member; data) { member = cast(T)(cast(float) member / norm); } // The casting is for when T == int, might be buggy.
     }
 
-    // TODO maybe inline all the static functions above?
+    // NOTE(ag): You could inline the binary operator functions above, but prepare to debug some issues if you go that way.
     auto opBinary(string op, T)(T rhs) const pure nothrow if ((op == "*" || op == "+" || op == "-" || op == "/")) {
         static if (is(T == Self) || is(T == const(Self)) || is(T == immutable(Self))) {
             static if      (op == "+") { return Self.add(this, rhs); }
@@ -99,7 +99,6 @@ struct Vector(int n, T = float) if (isNumeric!T) {
         else static assert(0, "Operator " ~ op ~ " not implemented for " ~ T.stringof ~ ".");
     }
 
-    // TODO do we need these, really?
     static if (n > 1) {
     	@property T x() const { return data[0]; }
     	@property T x(T val)  { return data[0] = val; }

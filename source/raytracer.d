@@ -146,8 +146,8 @@ struct Ray {
         immutable discriminant = b*b - 4*a*c;
         if (discriminant < 0) { return tuple(float.max, float.max); }
 
-        auto t1 = (-b + sqrt(discriminant)) / (2*a);
-        auto t2 = (-b - sqrt(discriminant)) / (2*a);
+        float t1 = (-b + sqrt(discriminant)) / (2*a);
+        float t2 = (-b - sqrt(discriminant)) / (2*a);
 
         return tuple(t1, t2);
     }

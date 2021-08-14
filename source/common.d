@@ -23,8 +23,8 @@ struct Color {
     Color opBinary(string op, T)(T rhs) const pure nothrow if ((is(T == Color) && (op == "+" || op == "-")) || (isNumeric!T && (op == "*" || op == "/"))) {
         static if      (op == "+") { return Color(clamp(r + rhs.r), clamp(g + rhs.g), clamp(b + rhs.b)); }
         else static if (op == "-") { return Color(clamp(r - rhs.r), clamp(g - rhs.g), clamp(b - rhs.b)); }
-        else static if (op == "*") { return Color(clamp(r * rhs), clamp(g * rhs), clamp(b * rhs)); }
-        else static if (op == "/") { return Color(clamp(r / rhs), clamp(g / rhs), clamp(b / rhs)); }
+        else static if (op == "*") { return Color(clamp(r * rhs),   clamp(g * rhs),   clamp(b * rhs));   }
+        else static if (op == "/") { return Color(clamp(r / rhs),   clamp(g / rhs),   clamp(b / rhs));   }
         else static assert(0, "Operator " ~ op ~ " not implemented.");
     }
 }
@@ -94,13 +94,13 @@ struct Canvas {
         }
     }
 
-    void DrawWireframeTriangle (Point p0, Point p1, Point p2, Color color) {
+    void DrawWireframeTriangle(Point p0, Point p1, Point p2, Color color) {
         DrawLine(p0, p1, color);
         DrawLine(p1, p2, color);
         DrawLine(p2, p0, color);
     }
 
-    void DrawFilledTriangle (Point p0, Point p1, Point p2, Color color) {
+    void DrawFilledTriangle(Point p0, Point p1, Point p2, Color color) {
         // Sort the points so that y0 <= y1 <= y2
         if (p1.y < p0.y) { swap(p1, p0); }
         if (p2.y < p0.y) { swap(p2, p0); }
@@ -110,7 +110,6 @@ struct Canvas {
         auto x01 = Interpolate(p0.y, p0.x, p1.y, p1.x);
         auto x02 = Interpolate(p0.y, p0.x, p2.y, p2.x);
         auto x12 = Interpolate(p1.y, p1.x, p2.y, p2.x);
-
 
         // Concatenate the short sides
         auto x012 = x01 ~ x12[1..$];
