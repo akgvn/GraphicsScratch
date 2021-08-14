@@ -15,3 +15,4 @@ graphics-from-scratch-in-d-test-*
 *.lst
 source/out.ppm
 *.ppm
+.vscode/

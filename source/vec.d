@@ -3,7 +3,9 @@ import std.conv: to;
 import std.math: sqrt;
 
 alias Vec3f = Vector!(3, float);
-alias Point = Vector!(2, int);
+
+// alias Point = Vector!(2, int);
+struct Point { int x, y; float h; }
 
 struct Mat3 { float[3][3] data; } // TODO(ag): Make this a generic struct
 
@@ -19,7 +21,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
     Self normalized() const @nogc pure {
         Self normalized = this;
 
-        float norm = norm();
+        const norm = norm();
 
         return (normalized / norm);
     }

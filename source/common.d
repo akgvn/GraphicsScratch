@@ -57,9 +57,9 @@ struct Canvas {
     void PutPixel(int screen_x, int screen_y, Color color) @nogc {
         // Canvas has it's origin point in the middle, but the
         // buffer has it's origin on the top left. Conversion:
-        int buffer_x = screen_x + (canvas_width / 2);
-        int buffer_y = (canvas_height / 2) - screen_y - 1;
-        int buffer_idx = buffer_x + buffer_y * canvas_width;
+        const int buffer_x   = screen_x + (canvas_width / 2);
+        const int buffer_y   = (canvas_height / 2) - screen_y - 1;
+        const int buffer_idx = buffer_x + buffer_y * canvas_width;
 
         this.buffer[buffer_idx] = color;
     }
@@ -144,13 +144,69 @@ struct Canvas {
         }
 
         // Draw the horizontal segments
-        for (int y = p0.y; y <= p2.y; y++) {
-            for (int x = x_left[y - p0.y]; x < x_right[y - p0.y]; x++) {
+        foreach (y; p0.y .. p2.y) { // NOTE(ag): Maybe introduced a bug: it used to be y <= p2.y
+            foreach (x; x_left[y - p0.y] .. x_right[y - p0.y]) {
                 PutPixel(x, y, color);
             }
         }
     }
+
+    void DrawShadedTriangle(Point p0, Point p1, Point p2, Color color) {
+        // Sort the points so that y0 <= y1 <= y2
+        if (p1.y < p0.y) { swap(p1, p0); }
+        if (p2.y < p0.y) { swap(p2, p0); }
+        if (p2.y < p1.y) { swap(p2, p1); }
+
+        // Compute the x coordinates and h values of the triangle edges
+        auto x01 = Interpolate(p0.y, p0.x, p1.y, p1.x);
+        auto h01 = Interpolate(p0.y, p0.h, p1.y, p1.h);
+
+        auto x12 = Interpolate(p1.y, p1.x, p2.y, p2.x);
+        auto h12 = Interpolate(p1.y, p1.h, p2.y, p2.h);
+
+        auto x02 = Interpolate(p0.y, p0.x, p2.y, p2.x);
+        auto h02 = Interpolate(p0.y, p0.h, p2.y, p2.h);
+        
+        // Concatenate the short sides
+        auto x012 = x01 ~ x12[1..$];
+        auto h012 = h01 ~ h12[1..$];
+
+        // Determine which is left and which is right
+        auto m = cast(int) floor(cast(real) x012.length / 2.0);
+
+        int[] x_left, x_right;
+        float[] h_left, h_right;
+
+        if (x02[m] < x012[m]) {
+            x_left = x02;
+            h_left = h02;
+
+            x_right = x012;
+            h_right = h012;
+        } else {
+            x_left = x012;
+            h_left = h012;
+            
+            x_right = x02;
+            h_right = h02;
+        }
+
+        // Draw the horizontal segments
+        foreach (y; p0.y .. p2.y) {
+            auto x_l = x_left[y - p0.y];
+            auto x_r = x_right[y - p0.y];
+
+            auto h_segment = Interpolate(x_l, h_left[y - p0.y], x_r, h_right[y - p0.y]);
+
+            foreach (x; x_l .. x_r) {
+                auto shaded_color = color * h_segment[x - x_l];
+                PutPixel(x, y, shaded_color);
+            }
+        }
+    }
 }
+
+// TODO(ag): I don't like that we have two different Interolation functions. Maybe make them templated?
 
 /// Interpolates a unique coordinate for each point between dependent_0 and _1, using independent coordinates.
 int[] Interpolate(int independent_0, int dependent_0, int independent_1, int dependent_1) {
@@ -166,8 +222,23 @@ int[] Interpolate(int independent_0, int dependent_0, int independent_1, int dep
     return values;
 }
 
-void swap(T)(ref T lhs, ref T rhs) nothrow {
+/// Interpolates a unique coordinate for each point between (float) dependent_0 and _1, using (int) independent coordinates.
+float[] Interpolate(int independent_0, float dependent_0, int independent_1, float dependent_1) {
+    float[] values = [];
+    auto slope = (dependent_1 - dependent_0) / cast(float) (independent_1 - independent_0);
+    auto dependent = dependent_0;
+
+    for (auto i = independent_0; i <= independent_1; i++) {
+        values ~= dependent;
+        dependent += slope;
+    }
+
+    return values;
+}
+
+private void swap(T)(ref T lhs, ref T rhs) nothrow @nogc {
     auto temp = lhs;
     lhs = rhs;
     rhs = temp;
 }
+

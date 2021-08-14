@@ -119,7 +119,7 @@ struct Ray {
         auto local_color = closest_sphere.color * ComputeLighting(surface_normal, this.direction * -1, closest_sphere.specular, scene);
 
         // Reflections
-        float r = closest_sphere.reflective;
+        const float r = closest_sphere.reflective;
         if (recursion_depth <= 0 || r <= 0.0) return local_color;
 
         // Reflected color
@@ -160,7 +160,6 @@ struct Ray {
 
 }
 
-
 Tuple!(const(Sphere)*, float) ComputeIntersection(const ref Ray ray, const float t_min, const float t_max, const Sphere[] spheres) @nogc {
     auto closest_t = float.max;
     const(Sphere)* closest_sphere = null;
@@ -168,7 +167,7 @@ Tuple!(const(Sphere)*, float) ComputeIntersection(const ref Ray ray, const float
     foreach (ref sphere; spheres) {
         Tuple!(float, float) ts = ray.IntersectSphere(sphere);
 
-        auto t1 = ts[0], t2 = ts[1];
+        const auto t1 = ts[0], t2 = ts[1];
 
         if ((t1 > t_min) && (t1 < t_max) && (t1 < closest_t)) {
             closest_t = t1;
