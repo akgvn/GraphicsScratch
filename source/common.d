@@ -193,13 +193,12 @@ struct Canvas {
 
         // Draw the horizontal segments
         foreach (y; p0.y .. p2.y) {
-            auto x_l = x_left[y - p0.y];
-            auto x_r = x_right[y - p0.y];
+            const x_l = x_left[y - p0.y];
+            const x_r = x_right[y - p0.y];
 
-            auto h_segment = Interpolate(x_l, h_left[y - p0.y], x_r, h_right[y - p0.y]);
-
+            const h_segment = Interpolate(x_l, h_left[y - p0.y], x_r, h_right[y - p0.y]);
             foreach (x; x_l .. x_r) {
-                auto shaded_color = color * h_segment[x - x_l];
+                const shaded_color = color * h_segment[x - x_l];
                 PutPixel(x, y, shaded_color);
             }
         }
@@ -210,12 +209,13 @@ struct Canvas {
 
 /// Interpolates a unique coordinate for each point between dependent_0 and _1, using independent coordinates.
 int[] Interpolate(int independent_0, int dependent_0, int independent_1, int dependent_1) {
-    int[] values = [];
     auto slope = cast(float) (dependent_1 - dependent_0) / cast(float) (independent_1 - independent_0);
     auto dependent = cast(float) dependent_0;
+    const count = (independent_1 - independent_0) + 1;
 
-    for (auto i = independent_0; i <= independent_1; i++) {
-        values ~= cast(int) dependent;
+    int[] values = new int[count];
+    foreach (i; 0 .. count) {
+        values[i] = cast(int) dependent;
         dependent += slope;
     }
 
@@ -224,16 +224,17 @@ int[] Interpolate(int independent_0, int dependent_0, int independent_1, int dep
 
 /// Interpolates a unique coordinate for each point between (float) dependent_0 and _1, using (int) independent coordinates.
 float[] Interpolate(int independent_0, float dependent_0, int independent_1, float dependent_1) {
-    float[] values = [];
     auto slope = (dependent_1 - dependent_0) / cast(float) (independent_1 - independent_0);
     auto dependent = dependent_0;
-
-    for (auto i = independent_0; i <= independent_1; i++) {
-        values ~= dependent;
+    const count = (independent_1 - independent_0) + 1;
+   
+    float[] values = new float[count];
+    foreach (i; 0 .. count) {
+        values[i] = dependent;
         dependent += slope;
     }
 
-    return values;
+    return values;  
 }
 
 private void swap(T)(ref T lhs, ref T rhs) nothrow @nogc {
@@ -241,4 +242,3 @@ private void swap(T)(ref T lhs, ref T rhs) nothrow @nogc {
     lhs = rhs;
     rhs = temp;
 }
-
