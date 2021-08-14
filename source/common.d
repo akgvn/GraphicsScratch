@@ -39,19 +39,23 @@ struct Canvas {
         buffer = new Color[canvas_width * canvas_height];
     }
 
-    void RenderToFile(string filename = "out.ppm") const {
+    void RenderToFile(string filename = "out.ppm") const nothrow {
         // Dump the image to a PPM file.
-        import std.format: format;
-        auto header = cast(ubyte[]) format("P6\n%d %d\n255\n", canvas_width, canvas_height);
+        import std.stdio: File, printf;
 
-        // TODO Handle possible exceptions.
-        import std.stdio: File;
-        auto fp = File(filename, "wb");
-        auto writer = fp.lockingBinaryWriter();
+        try {
+            import std.format: format;
+            auto header = cast(ubyte[]) format("P6\n%d %d\n255\n", canvas_width, canvas_height);
+            auto fp = File(filename, "wb");
+            auto writer = fp.lockingBinaryWriter();
 
-        import std.algorithm.mutation: copy;
-        header.copy(writer);
-        buffer.copy(writer);
+            import std.algorithm.mutation: copy;
+            header.copy(writer);
+            buffer.copy(writer);
+
+        } catch (Exception e) {
+            printf("Error when writing to ppm file."); // Using printf because writeln throws :D
+        }
     }
 
     void PutPixel(int screen_x, int screen_y, Color color) @nogc {

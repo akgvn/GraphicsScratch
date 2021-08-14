@@ -3,11 +3,14 @@ import std.conv: to;
 import std.math: sqrt;
 
 alias Vec3f = Vector!(3, float);
+alias Mat3 = Mat!(float, 3, 3);
 
 // alias Point = Vector!(2, int);
 struct Point { int x, y; float h; }
 
-struct Mat3 { float[3][3] data; } // TODO(ag): Make this a generic struct
+struct Mat(T, int row, int col) {
+    T[col][row] data;
+}
 
 struct Vector(int n, T = float) if (isNumeric!T) {
     T[n] data = 0;
@@ -73,7 +76,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
     }
 
     void normalize() nothrow @nogc {
-        float norm = norm();
+        const norm = norm();
         foreach (ref member; data) { member = cast(T)(cast(float) member / norm); } // The casting is for when T == int, might be buggy.
     }
 
