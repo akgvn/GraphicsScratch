@@ -82,8 +82,8 @@ void raytrace() {
     immutable half_height = (scene.canvas_height / 2);
 
     Ray ray;
-    for (int x = - half_width; x < half_width; x++) {
-        for (int y = - half_height; y < half_height; y++) {
+    foreach (x; -half_width .. half_width) {
+        foreach (y; -half_height .. half_height) {
             ray.origin = cam.position;
             ray.direction = scene.CanvasToViewport(x, y) * cam.rotation;
 
