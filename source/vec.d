@@ -3,14 +3,84 @@ import std.conv: to;
 import std.math: sqrt;
 
 alias Vec3f = Vector!(3, float);
-alias Mat3 = Mat!(float, 3, 3);
+alias Mat3 = Mat!(3, 3, float);
+alias Mat4 = Mat!(4, 4, float);
 alias Vertex = Vector!(3, float);
 
 // alias Point = Vector!(2, int);
 struct Point { int x, y; float h = 1; }
 
-struct Mat(T, int row, int col) {
+struct Mat(int row, int col, T) if (isNumeric!T) {
     T[col][row] data;
+
+    alias Self = Mat!(row, col, T);
+
+    void add(const ref Self rhs) @nogc nothrow {
+        for (int r = 0; r < row; r++) {
+            for (int c = 0; c < col; c++) {
+                this.data[r][c] += rhs.data[r][c];
+            }
+        }
+    }
+
+    void mult(T rhs) @nogc nothrow {
+        for (int r = 0; r < row; r++) {
+            for (int c = 0; c < col; c++) {
+                this.data[r][c] *= rhs;
+            }
+        }
+    }
+
+    Vector!(row, T) mult(Vector!(col, T) rhs) const @nogc nothrow {
+        Vector!(row, T) result;
+
+        for (int r = 0; r < row; r++) {
+            result.data[r] = 0;
+            for (int c = 0; c < col; c++) {
+                result.data[r] += this.data[r][c] * rhs.data[c];
+            }
+        }
+
+        return result;
+    }
+
+    Mat!(row, r_col, T) mult(int r_row, int r_col)(Mat!(r_row, r_col, T) rhs) const @nogc nothrow {
+        Mat!(row, r_col, T) result;
+
+        for (int lr = 0; lr < row; lr++) {
+            for (int rc = 0; rc < r_col; rc++) {
+                // static_assert(col == r_row); // TODO(ag) undefined?
+                auto sum = 0;
+                for (int idx = 0; idx < col; idx++) {
+                    sum += this.data[lr][idx] * rhs.data[idx][rc];
+                }
+                
+                result.data[lr][rc] = sum;
+            }
+        }
+
+        return result;
+    }
+}
+
+unittest { // Gotta make sure we got this confusing thing right!
+    Mat!(2, 3, int) left = {[
+        [1, 2, 3],
+        [4, 5, 6]
+    ]};
+
+    Mat!(3, 2, int) right = {[
+        [10, 11],
+        [20, 21],
+        [30, 31]
+    ]};
+
+    Mat!(2, 2, int) res = {[
+        [140, 146],
+        [320, 335]
+    ]};
+
+    assert((left.mult(right)) == res);
 }
 
 struct Vector(int n, T = float) if (isNumeric!T) {
