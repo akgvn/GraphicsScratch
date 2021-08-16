@@ -231,3 +231,48 @@ private void swap(T)(ref T lhs, ref T rhs) nothrow @nogc {
     lhs = rhs;
     rhs = temp;
 }
+
+/*
+struct Camera {
+    Vec3f position = Vec3f(0, 0, 0);
+    Mat3 rotation = {[
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+    ]};
+}
+*/
+
+struct Scene {
+    float viewport_distance = 1;
+    float viewport_width  = 1;
+    float viewport_height = 1;
+    int canvas_width  = 600;
+    int canvas_height = 600;
+
+    Vec3f CanvasToViewport(int x, int y) const @nogc nothrow {
+        return Vec3f(
+            (x * viewport_width) / canvas_width,
+            (y * viewport_height) / canvas_height,
+            viewport_distance
+        );
+    }
+
+    Point ViewportToCanvas(float px, float py) const @nogc nothrow {
+        return Point(
+            cast(int) ((px * canvas_width)  / viewport_width),
+            cast(int) ((py * canvas_height) / viewport_height),
+        );
+    }
+
+    Point ProjectVertex(Vertex v) const {
+        float px = ((v.x * viewport_distance) / v.z);
+        float py = ((v.y * viewport_distance) / v.z);
+
+        auto result = ViewportToCanvas(px, py);
+
+        import std.stdio:writeln; writeln(result);
+
+        return result;
+    }
+}
