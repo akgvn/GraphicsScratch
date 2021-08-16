@@ -18,6 +18,8 @@ struct Color {
         GREEN  = Color(  0, 255,   0),
         BLUE   = Color(  0,   0, 255),
         YELLOW = Color(255, 255,   0),
+        PURPLE = Color(128,   0, 128),
+        CYAN   = Color(  0, 255, 255),
     }
 
     Color opBinary(string op, T)(T rhs) const pure nothrow if ((is(T == Color) && (op == "+" || op == "-")) || (isNumeric!T && (op == "*" || op == "/"))) {
@@ -54,7 +56,7 @@ struct Canvas {
             buffer.copy(writer);
 
         } catch (Exception e) {
-            printf("Error when writing to ppm file."); // Using printf because writeln throws :D
+            printf("Error when writing to ppm file.\n"); // Using printf because writeln throws :D
         }
     }
 
@@ -268,10 +270,10 @@ struct Scene {
         );
     }
 
-    Point ViewportToCanvas(float px, float py) const @nogc nothrow {
+    Point ViewportToCanvas(float x, float y) const @nogc nothrow {
         return Point(
-            cast(int) ((px * canvas_width)  / viewport_width),
-            cast(int) ((py * canvas_height) / viewport_height),
+            cast(int) ((x * canvas_width)  / viewport_width),
+            cast(int) ((y * canvas_height) / viewport_height),
         );
     }
 
