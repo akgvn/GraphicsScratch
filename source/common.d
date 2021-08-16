@@ -58,12 +58,22 @@ struct Canvas {
         }
     }
 
-    void PutPixel(int screen_x, int screen_y, Color color) @nogc {
+    void PutPixel(int screen_x, int screen_y, Color color) @nogc nothrow {
         // Canvas has it's origin point in the middle, but the
         // buffer has it's origin on the top left. Conversion:
         const int buffer_x   = screen_x + (canvas_width / 2);
         const int buffer_y   = (canvas_height / 2) - screen_y - 1;
         const int buffer_idx = buffer_x + buffer_y * canvas_width;
+
+        immutable x_out_of_bounds   = buffer_x   >  canvas_width  || buffer_x   < 0;
+        immutable y_out_of_bounds   = buffer_y   >  canvas_height || buffer_y   < 0;
+        immutable idx_out_of_bounds = buffer_idx >= buffer.length || buffer_idx < 0;
+
+        if (x_out_of_bounds || y_out_of_bounds || idx_out_of_bounds) {
+            import std.stdio: printf;
+            printf("Out of bounds at screen coordinates: %d, %d --> buffer_idx = %d\n", screen_x, screen_y, buffer_idx);
+            return;
+        }
 
         this.buffer[buffer_idx] = color;
     }
@@ -265,14 +275,10 @@ struct Scene {
         );
     }
 
-    Point ProjectVertex(Vertex v) const {
+    Point ProjectVertex(Vertex v) const @nogc nothrow {
         float px = ((v.x * viewport_distance) / v.z);
         float py = ((v.y * viewport_distance) / v.z);
 
-        auto result = ViewportToCanvas(px, py);
-
-        import std.stdio:writeln; writeln(result);
-
-        return result;
+        return ViewportToCanvas(px, py);
     }
 }

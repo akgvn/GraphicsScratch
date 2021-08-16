@@ -18,16 +18,16 @@ void rasterize() {
 
 void perspective_projection(ref Canvas canvas) {
     // The four "front" vertices
-    auto vAf = Vertex([-1,  1, 5]);
-    auto vBf = Vertex([ 1,  1, 5]);
-    auto vCf = Vertex([ 1, -1, 5]);
-    auto vDf = Vertex([-1, -1, 5]);
+    auto vAf = Vertex(-2, -0.5, 5);
+    auto vBf = Vertex(-2,  0.5, 5);
+    auto vCf = Vertex(-1,  0.5, 5);
+    auto vDf = Vertex(-1, -0.5, 5);
 
     // The four "back" vertices
-    auto vAb = Vertex([-1,  1, 8]);
-    auto vBb = Vertex([ 1,  1, 8]);
-    auto vCb = Vertex([ 1, -1, 8]);
-    auto vDb = Vertex([-1, -1, 8]);
+    auto vAb = Vertex(-2, -0.5, 6);
+    auto vBb = Vertex(-2,  0.5, 6);
+    auto vCb = Vertex(-1,  0.5, 6);
+    auto vDb = Vertex(-1, -0.5, 6);
 
     Scene s;
     // The front face
