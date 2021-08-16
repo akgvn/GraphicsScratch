@@ -79,9 +79,16 @@ void representing_a_cube(ref Scene scene, ref Canvas canvas) {
         Model.Triangle([2, 7, 3], Color.CYAN),
     ];
 
-    model.Translate(Vec3f(-1.5, 0, 7));
+    auto instances = [
+        ModelInstance(&model, Vertex(-1.5, 0, 7)),
+        ModelInstance(&model, Vertex(1.25, 2, 7.5))
+    ];
 
-    model.Render(scene, canvas);
+    foreach(ref instance; instances) {
+        instance.Render(scene, canvas);
+    }
+
+    // model.Render(scene, canvas);
 }
 
 struct Model {
@@ -114,9 +121,30 @@ struct Model {
         }
     }
 
+    void TranslateAndRender(const ref Scene scene, ref Canvas canvas, Vec3f translation_vector) const {
+        auto projected = new Point[vertices.length];
+
+        foreach (idx, vertex; vertices) {
+            projected[idx] = scene.ProjectVertex(vertex + translation_vector);
+        }
+
+        foreach (triangle; triangles) {
+            triangle.Render(projected, canvas);
+        }
+    }
+
     void Translate(Vec3f translation_vector) {
         foreach(ref vertex; vertices) {
             vertex = vertex + translation_vector;
         }
+    }
+}
+
+struct ModelInstance {
+    Model* model;
+    Vec3f pos;
+
+    void Render(const ref Scene scene, ref Canvas canvas) const {
+        if (model != null) model.TranslateAndRender(scene, canvas, pos);
     }
 }
