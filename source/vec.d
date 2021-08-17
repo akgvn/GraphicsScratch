@@ -3,11 +3,17 @@ import std.conv: to;
 import std.math: sqrt;
 
 alias Vec3f  = Vector!(3, float);
-alias Vertex = Vector!(3, float);
+alias Vertex = Vector!(4, float);
 alias Mat3 = Matrix!(3, 3, float);
 alias Mat4 = Matrix!(4, 4, float);
 
-// alias Point = Vector!(2, int);
+static immutable Identity4 = Mat4([
+    [1, 0, 0, 0],
+    [0, 1, 0, 0],
+    [0, 0, 1, 0],
+    [0, 0, 0, 1],
+]);
+
 struct Point { int x, y; float h = 1; }
 
 struct Matrix(int row, int col, T) if (isNumeric!T) {
@@ -16,16 +22,16 @@ struct Matrix(int row, int col, T) if (isNumeric!T) {
     alias Self = Matrix!(row, col, T);
 
     void add(const ref Self rhs) @nogc nothrow {
-        for (int r = 0; r < row; r++) {
-            for (int c = 0; c < col; c++) {
+        foreach (r; 0 .. row) {
+            foreach (c; 0 .. col) {
                 this.data[r][c] += rhs.data[r][c];
             }
         }
     }
 
     void mult(T rhs) @nogc nothrow {
-        for (int r = 0; r < row; r++) {
-            for (int c = 0; c < col; c++) {
+        foreach (r; 0 .. row) {
+            foreach (c; 0 .. col) {
                 this.data[r][c] *= rhs;
             }
         }
@@ -34,9 +40,9 @@ struct Matrix(int row, int col, T) if (isNumeric!T) {
     Vector!(row, T) mult(Vector!(col, T) rhs) const @nogc nothrow {
         Vector!(row, T) result;
 
-        for (int r = 0; r < row; r++) {
+        foreach (r; 0 .. row) {
             result.data[r] = 0;
-            for (int c = 0; c < col; c++) {
+            foreach (c; 0 .. col) {
                 result.data[r] += this.data[r][c] * rhs.data[c];
             }
         }
@@ -47,12 +53,12 @@ struct Matrix(int row, int col, T) if (isNumeric!T) {
     Matrix!(row, r_col, T) mult(int r_row, int r_col)(Matrix!(r_row, r_col, T) rhs) const @nogc nothrow {
         Matrix!(row, r_col, T) result;
 
-        for (int lr = 0; lr < row; lr++) {
-            for (int rc = 0; rc < r_col; rc++) {
+        foreach (lr; 0 .. row) {
+            foreach (rc; 0 .. r_col) {
                 static assert(col == r_row);
 
-                auto sum = 0;
-                for (int idx = 0; idx < col; idx++) {
+                T sum = 0;
+                foreach (idx; 0 .. col) {
                     sum += this.data[lr][idx] * rhs.data[idx][rc];
                 }
                 
@@ -63,18 +69,28 @@ struct Matrix(int row, int col, T) if (isNumeric!T) {
         return result;
     }
 
-    // Exposing template parameters for `canMultiplyMatrix`:
-    private enum rows = row;
+    Self Transposed() const {
+        Self result;
+
+        foreach (r; 0 .. row) {
+            foreach (c; 0 .. col) {
+                result.data[c][r] = this.data[r][c];
+            }
+        }
+
+        return result;
+    }
+
+    // Exposing template col parameter for `canMultiplyMatrix`:
     private enum columns = col;
 
-    private enum canMultiplyVector(V) = is(V == Vector!(col, T));
-    private enum canMultiplyMatrix(M) = is(M == Matrix!(col, M.columns, T));
+    private enum canMultiplyVector(V) = is(V == Vector!(col, T)) || is(V == const(Vector!(col, T))) || is(V == immutable(Vector!(col, T)));
+    private enum canMultiplyMatrix(M) = is(M == Matrix) && is(M == Matrix!(col, M.columns, T));
     private enum canMultiply(K) = canMultiplyVector!K || canMultiplyMatrix!K;
 
     auto opBinary(string op, K)(K rhs) const pure @nogc nothrow if (op == "*" && canMultiply!K) {
         return this.mult(rhs);
     }
-
 }
 
 // Gotta make sure we got this confusing thing right!
@@ -120,7 +136,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
     static Self add(const Self lhs, const Self rhs) pure @nogc {
         Self new_vec;
 
-        for (int i = 0; i < n; i++) {
+        foreach (i; 0 .. n) {
             new_vec.data[i] = lhs.data[i] + rhs.data[i];
         }
 
@@ -130,7 +146,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
     static Self sub(const Self lhs, const Self rhs) pure @nogc {
         Self new_vec;
 
-        for (int i = 0; i < n; i++) {
+        foreach (i; 0 .. n) {
             new_vec.data[i] = lhs.data[i] - rhs.data[i];
         }
 
@@ -140,7 +156,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
     static float mult(const Self lhs, const Self rhs) pure @nogc {
         auto sum = 0.0;
 
-        for (int i = 0; i < n; i++) {
+        foreach (i; 0 .. n) {
             sum += lhs.data[i] * rhs.data[i];
         }
 
@@ -150,7 +166,7 @@ struct Vector(int n, T = float) if (isNumeric!T) {
     static Self mult(K)(const Self lhs, const K rhs) pure @nogc if (isNumeric!K) {
         Self new_vec;
 
-        for (int i = 0; i < n; i++) {
+        foreach (i; 0 .. n) {
             new_vec.data[i] = cast(T)(lhs.data[i] * rhs);
         }
 
@@ -181,8 +197,8 @@ struct Vector(int n, T = float) if (isNumeric!T) {
         else static if (is(T == Mat3) && op == "*" && n == 3) {
             Vec3f result = Vec3f([0, 0, 0]);
 
-            for (auto row = 0; row < 3; row++) {
-                for (auto col = 0; col < 3; col++) {
+            foreach (row; 0 .. 3) {
+                foreach (col; 0 .. 3) {
                     result.data[row] += this.data[col]* rhs.data[row][col];
                 }
             }
