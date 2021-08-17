@@ -4,64 +4,30 @@ import std.stdio;
 
 void rasterize() {
     Scene scene;
+    scene.camera = Camera(Vec3f(-3, 1, 2), MakeOYRotationMatrix(-30));
+
     auto canvas = Canvas(scene.canvas_width, scene.canvas_height);
 
-    // canvas.DrawFilledTriangle(Point(-200, -100), Point(240, 120), Point(-50,  -200), Color.GREEN);
-    // canvas.DrawWireframeTriangle(Point(-200, -100), Point(240, 120), Point(-50,  -200), Color.BLUE);
-    // canvas.DrawShadedTriangle(Point(-200, -250, 0.3), Point(200, 50, 0.1), Point(20, 250, 1.0), Color.BLUE);
-
-    // perspective_projection(scene, canvas);
-    representing_a_cube(scene, canvas);
+    populate_scene(scene);
+    scene.Render(canvas);
 
     canvas.RenderToFile();
 
     writeln("Done");
 }
 
-void perspective_projection(ref Scene scene, ref Canvas canvas) {
-    // The four "front" vertices
-    auto vAf = Vertex(-2, -0.5, 5);
-    auto vBf = Vertex(-2,  0.5, 5);
-    auto vCf = Vertex(-1,  0.5, 5);
-    auto vDf = Vertex(-1, -0.5, 5);
-
-    // The four "back" vertices
-    auto vAb = Vertex(-2, -0.5, 6);
-    auto vBb = Vertex(-2,  0.5, 6);
-    auto vCb = Vertex(-1,  0.5, 6);
-    auto vDb = Vertex(-1, -0.5, 6);
-
-    // The front face
-    canvas.DrawLine(scene.ProjectVertex(vAf), scene.ProjectVertex(vBf), Color.BLUE);
-    canvas.DrawLine(scene.ProjectVertex(vBf), scene.ProjectVertex(vCf), Color.BLUE);
-    canvas.DrawLine(scene.ProjectVertex(vCf), scene.ProjectVertex(vDf), Color.BLUE);
-    canvas.DrawLine(scene.ProjectVertex(vDf), scene.ProjectVertex(vAf), Color.BLUE);
-
-    // The back face
-    canvas.DrawLine(scene.ProjectVertex(vAb), scene.ProjectVertex(vBb), Color.RED);
-    canvas.DrawLine(scene.ProjectVertex(vBb), scene.ProjectVertex(vCb), Color.RED);
-    canvas.DrawLine(scene.ProjectVertex(vCb), scene.ProjectVertex(vDb), Color.RED);
-    canvas.DrawLine(scene.ProjectVertex(vDb), scene.ProjectVertex(vAb), Color.RED);
-
-    // The front-to-back edges
-    canvas.DrawLine(scene.ProjectVertex(vAf), scene.ProjectVertex(vAb), Color.GREEN);
-    canvas.DrawLine(scene.ProjectVertex(vBf), scene.ProjectVertex(vBb), Color.GREEN);
-    canvas.DrawLine(scene.ProjectVertex(vCf), scene.ProjectVertex(vCb), Color.GREEN);
-    canvas.DrawLine(scene.ProjectVertex(vDf), scene.ProjectVertex(vDb), Color.GREEN);
-}
-
-void representing_a_cube(ref Scene scene, ref Canvas canvas) {
+void populate_scene(ref Scene scene) {
     Model model;
 
     model.vertices = [
-        Vertex( 1,  1,  1),
-        Vertex(-1,  1,  1),
-        Vertex(-1, -1,  1),
-        Vertex( 1, -1,  1),
-        Vertex( 1,  1, -1),
-        Vertex(-1,  1, -1),
-        Vertex(-1, -1, -1),
-        Vertex( 1, -1, -1),
+        Vertex( 1,  1,  1, 1),
+        Vertex(-1,  1,  1, 1),
+        Vertex(-1, -1,  1, 1),
+        Vertex( 1, -1,  1, 1),
+        Vertex( 1,  1, -1, 1),
+        Vertex(-1,  1, -1, 1),
+        Vertex(-1, -1, -1, 1),
+        Vertex( 1, -1, -1, 1),
     ];
 
     model.triangles = [
@@ -79,16 +45,11 @@ void representing_a_cube(ref Scene scene, ref Canvas canvas) {
         Model.Triangle([2, 7, 3], Color.CYAN),
     ];
 
-    auto instances = [
-        ModelInstance(&model, Vertex(-1.5, 0, 7)),
-        ModelInstance(&model, Vertex(1.25, 2, 7.5))
+    scene.models = [model];
+    scene.instances = [
+        Scene.Instance(0, Vec3f(-1.5, 0, 7), Identity4, 0.75),
+        Scene.Instance(0, Vec3f(1.25, 2.5, 7.5), MakeOYRotationMatrix(195)),
     ];
-
-    foreach(ref instance; instances) {
-        instance.Render(scene, canvas);
-    }
-
-    // model.Render(scene, canvas);
 }
 
 struct Model {
@@ -109,43 +70,109 @@ struct Model {
     Triangle[] triangles;
     Vertex[] vertices;
 
-    void Render(const ref Scene scene, ref Canvas canvas) const {
+    void Render(const ref Scene scene, ref Canvas canvas, Mat4 transform_matrix = Identity4) const {
         auto projected = new Point[vertices.length];
 
         foreach (idx, vertex; vertices) {
-            projected[idx] = scene.ProjectVertex(vertex);
+            projected[idx] = scene.ProjectVertex(scene.camera.CameraMatrix * transform_matrix * vertex);
         }
 
         foreach (triangle; triangles) {
             triangle.Render(projected, canvas);
-        }
-    }
-
-    void TranslateAndRender(const ref Scene scene, ref Canvas canvas, Vec3f translation_vector) const {
-        auto projected = new Point[vertices.length];
-
-        foreach (idx, vertex; vertices) {
-            projected[idx] = scene.ProjectVertex(vertex + translation_vector);
-        }
-
-        foreach (triangle; triangles) {
-            triangle.Render(projected, canvas);
-        }
-    }
-
-    void Translate(Vec3f translation_vector) {
-        foreach(ref vertex; vertices) {
-            vertex = vertex + translation_vector;
         }
     }
 }
 
-struct ModelInstance {
-    Model* model;
-    Vec3f pos;
+Mat4 MakeOYRotationMatrix(float degrees) @nogc {
+    import std.math : sin, cos, PI;
+    float cosine = cos(degrees * PI/180.0);
+    float sine   = sin(degrees * PI/180.0);
 
-    void Render(const ref Scene scene, ref Canvas canvas) const {
-        if (model != null) model.TranslateAndRender(scene, canvas, pos);
-        else printf("Error: Null model pointer!\n");
+    return Mat4([
+        [cosine, 0,  -sine, 0],
+        [    0f, 1,      0, 0],
+        [  sine, 0, cosine, 0],
+        [    0f, 0,      0, 1]
+    ]);
+}
+
+Mat4 MakeTranslationMatrix(Vec3f translation_vector) @nogc {
+    const x = translation_vector.x;
+    const y = translation_vector.y;
+    const z = translation_vector.z;
+
+    return Mat4([
+        [1, 0, 0,  x],
+        [0, 1, 0,  y],
+        [0, 0, 1,  z],
+        [0, 0, 0, 1f]
+    ]);
+}
+
+Mat4 MakeScalingMatrix(float scale) @nogc {
+    return Mat4([
+        [scale,     0,     0, 0],
+        [    0, scale,     0, 0],
+        [    0,     0, scale, 0],
+        [   0f,     0,     0, 1],
+    ]);
+}
+
+struct Camera {
+    Vec3f position;
+    Mat4 orientation = Identity4;
+
+    Mat4 CameraMatrix() const @nogc {
+        return orientation.Transposed() * MakeTranslationMatrix(position * -1);
+    }
+}
+
+struct Scene {
+    float viewport_distance = 1;
+    float viewport_width  = 1;
+    float viewport_height = 1;
+    int canvas_width  = 600;
+    int canvas_height = 600;
+    Camera camera;
+    Model[] models;
+    Instance[] instances;
+
+    struct Instance {
+        int model_idx;
+        Vec3f pos;
+        Mat4 orientation = Identity4;
+        float scale = 1;
+
+        Mat4 TransformMatrix() const @nogc {
+            return MakeTranslationMatrix(this.pos) * (this.orientation * MakeScalingMatrix(this.scale));
+        }
+    }
+
+    Vec3f CanvasToViewport(int x, int y) const @nogc nothrow {
+        return Vec3f(
+            (x * viewport_width) / canvas_width,
+            (y * viewport_height) / canvas_height,
+            viewport_distance
+        );
+    }
+
+    Point ViewportToCanvas(float x, float y) const @nogc nothrow {
+        return Point(
+            cast(int) ((x * canvas_width)  / viewport_width),
+            cast(int) ((y * canvas_height) / viewport_height),
+        );
+    }
+
+    Point ProjectVertex(Vertex v) const @nogc nothrow {
+        float px = ((v.x * viewport_distance) / v.z);
+        float py = ((v.y * viewport_distance) / v.z);
+
+        return ViewportToCanvas(px, py);
+    }
+
+    void Render(ref Canvas canvas) const {
+        foreach(ref instance; instances) {
+            models[instance.model_idx].Render(this, canvas, instance.TransformMatrix());
+        }
     }
 }
