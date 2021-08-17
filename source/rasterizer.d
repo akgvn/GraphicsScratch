@@ -146,5 +146,6 @@ struct ModelInstance {
 
     void Render(const ref Scene scene, ref Canvas canvas) const {
         if (model != null) model.TranslateAndRender(scene, canvas, pos);
+        else printf("Error: Null model pointer!\n");
     }
 }

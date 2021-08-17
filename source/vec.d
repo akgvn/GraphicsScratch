@@ -2,18 +2,18 @@ import std.traits: isNumeric;
 import std.conv: to;
 import std.math: sqrt;
 
-alias Vec3f = Vector!(3, float);
-alias Mat3 = Mat!(3, 3, float);
-alias Mat4 = Mat!(4, 4, float);
+alias Vec3f  = Vector!(3, float);
 alias Vertex = Vector!(3, float);
+alias Mat3 = Matrix!(3, 3, float);
+alias Mat4 = Matrix!(4, 4, float);
 
 // alias Point = Vector!(2, int);
 struct Point { int x, y; float h = 1; }
 
-struct Mat(int row, int col, T) if (isNumeric!T) {
+struct Matrix(int row, int col, T) if (isNumeric!T) {
     T[col][row] data;
 
-    alias Self = Mat!(row, col, T);
+    alias Self = Matrix!(row, col, T);
 
     void add(const ref Self rhs) @nogc nothrow {
         for (int r = 0; r < row; r++) {
@@ -44,12 +44,13 @@ struct Mat(int row, int col, T) if (isNumeric!T) {
         return result;
     }
 
-    Mat!(row, r_col, T) mult(int r_row, int r_col)(Mat!(r_row, r_col, T) rhs) const @nogc nothrow {
-        Mat!(row, r_col, T) result;
+    Matrix!(row, r_col, T) mult(int r_row, int r_col)(Matrix!(r_row, r_col, T) rhs) const @nogc nothrow {
+        Matrix!(row, r_col, T) result;
 
         for (int lr = 0; lr < row; lr++) {
             for (int rc = 0; rc < r_col; rc++) {
-                // static_assert(col == r_row); // TODO(ag) undefined?
+                static assert(col == r_row);
+
                 auto sum = 0;
                 for (int idx = 0; idx < col; idx++) {
                     sum += this.data[lr][idx] * rhs.data[idx][rc];
@@ -61,26 +62,42 @@ struct Mat(int row, int col, T) if (isNumeric!T) {
 
         return result;
     }
+
+    // Exposing template parameters for `canMultiplyMatrix`:
+    private enum rows = row;
+    private enum columns = col;
+
+    private enum canMultiplyVector(V) = is(V == Vector!(col, T));
+    private enum canMultiplyMatrix(M) = is(M == Matrix!(col, M.columns, T));
+    private enum canMultiply(K) = canMultiplyVector!K || canMultiplyMatrix!K;
+
+    auto opBinary(string op, K)(K rhs) const pure @nogc nothrow if (op == "*" && canMultiply!K) {
+        return this.mult(rhs);
+    }
+
 }
 
-unittest { // Gotta make sure we got this confusing thing right!
-    Mat!(2, 3, int) left = {[
+// Gotta make sure we got this confusing thing right!
+unittest {
+    Matrix!(2, 3, int) left = {[
         [1, 2, 3],
         [4, 5, 6]
     ]};
 
-    Mat!(3, 2, int) right = {[
+    Matrix!(3, 2, int) right = {[
         [10, 11],
         [20, 21],
         [30, 31]
     ]};
 
-    Mat!(2, 2, int) res = {[
+    Matrix!(2, 2, int) result = {[
         [140, 146],
         [320, 335]
     ]};
 
-    assert((left.mult(right)) == res);
+    assert((left.mult(right)) == result);
+    assert(left.canMultiplyMatrix!(typeof(right)));
+    assert((left * right) == result);
 }
 
 struct Vector(int n, T = float) if (isNumeric!T) {
